@@ -1,82 +1,117 @@
+// Import Dependencies
 const express = require("express");
 const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
 const cors = require("cors");
-const fetch = require("node-fetch");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 require("dotenv").config();
 
+// Initialize App
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(bodyParser.json());
-app.use(cors({ origin: "http://localhost:3000" })); // ตั้งค่า CORS
+app.use(express.json());
+app.use(cors({ origin: "http://localhost:3000" }));
 
 // MongoDB Connection
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(
+    "mongodb+srv://beamsaenpong:beam160246@beam.8uqze.mongodb.net/TestProjectSeminar?retryWrites=true&w=majority",
+    { useNewUrlParser: true, useUnifiedTopology: true }
+  )
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Routes
+// Import Models
+const User = mongoose.model(
+  "User",
+  new mongoose.Schema({
+    fullname: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+  })
+);
 
-// Route สำหรับ /auth/exchange-code
-app.post("/auth/exchange-code", async (req, res) => {
-  console.log("Endpoint hit: /auth/exchange-code");
-  console.log("Request body:", req.body);
-
-  const { code, state } = req.body;
-
-  if (!code || !state) {
-    console.error("Missing required parameters: code or state");
-    return res.status(400).json({ error: "Missing code or state" });
+// JWT Middleware
+const verifyToken = (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) {
+    return res.status(403).json({ error: "Access denied, token missing" });
   }
 
-  const data = new URLSearchParams();
-  data.append("grant_type", "authorization_code");
-  data.append("code", code);
-  data.append("redirect_uri", "http://localhost:3000/callback"); // Redirect URI
-  data.append("client_id", process.env.LINE_CLIENT_ID); // Channel ID
-  data.append("client_secret", process.env.LINE_CLIENT_SECRET); // Channel Secret
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+// Routes
+
+// Auth Routes
+app.post("/auth/register", async (req, res) => {
+  const { fullname, email, password } = req.body;
+
+  if (!fullname || !email || !password) {
+    return res
+      .status(400)
+      .json({ error: "Fullname, email, and password are required" });
+  }
 
   try {
-    const response = await fetch("https://api.line.me/oauth2/v2.1/token", {
-      method: "POST",
-      body: data,
-    });
-
-    if (!response.ok) {
-      console.error("Failed to exchange code:", await response.text());
-      return res.status(400).json({ error: "Failed to exchange code" });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already exists" });
     }
 
-    const tokenData = await response.json();
-    console.log("Token Data:", tokenData);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ fullname, email, password: hashedPassword });
+    await newUser.save();
 
-    res.json({ accessToken: tokenData.access_token });
+    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.status(201).json({ message: "User registered successfully", token });
   } catch (error) {
-    console.error("Error during token exchange:", error);
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Server error, please try again later" });
+  }
+});
+
+app.post("/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.status(200).json({ message: "Login successful", token });
+  } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// Route สำหรับ /quotations (สมมติว่าเป็นเส้นทางสำหรับ quotationRoutes)
-app.get("/quotations", (req, res) => {
-  res.json({ message: "Quotation endpoint" });
-});
-
-// Route สำหรับ /auth (เส้นทางที่ใช้สำหรับการสมัครสมาชิก, เข้าสู่ระบบ ฯลฯ)
-app.post("/auth/register", async (req, res) => {
-  // การลงทะเบียนผู้ใช้ (หากต้องการเพิ่ม)
-  res.status(200).json({ message: "Registration endpoint" });
-});
-
-app.post("/auth/login", async (req, res) => {
-  // การเข้าสู่ระบบ (หากต้องการเพิ่ม)
-  res.status(200).json({ message: "Login endpoint" });
+// Quotation Routes (Protected)
+app.get("/quotations", verifyToken, (req, res) => {
+  res.json({ message: "Quotation endpoint", user: req.user });
 });
 
 // Root Route
@@ -86,35 +121,7 @@ app.get("/", (req, res) => {
 
 // Error Handling for Undefined Routes
 app.use((req, res) => {
-  res.status(404).json({
-    error: "Route not found",
-    path: req.originalUrl,
-  });
-});
-
-// Debugging Loaded Routes
-app._router.stack.forEach((middleware) => {
-  if (middleware.route) {
-    console.log(
-      `Loaded route: ${middleware.route.path} [${Object.keys(
-        middleware.route.methods
-      )
-        .join(", ")
-        .toUpperCase()}]`
-    );
-  } else if (middleware.name === "router") {
-    middleware.handle.stack.forEach((handler) => {
-      if (handler.route) {
-        console.log(
-          `Loaded nested route: ${handler.route.path} [${Object.keys(
-            handler.route.methods
-          )
-            .join(", ")
-            .toUpperCase()}]`
-        );
-      }
-    });
-  }
+  res.status(404).json({ error: "Route not found", path: req.originalUrl });
 });
 
 // Start Server
