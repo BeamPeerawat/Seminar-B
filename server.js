@@ -53,6 +53,20 @@ const verifyToken = (req, res, next) => {
 // Routes
 
 // Auth Routes
+app.post("/api/admin/login", (req, res) => {
+  const { username, password } = req.body;
+
+  // ตรวจสอบ Username และ Password
+  if (username === "admin" && password === "yourAdminPassword") {
+    const token = jwt.sign({ username }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.json({ token });
+  } else {
+    res.status(400).json({ message: "Invalid Credentials" });
+  }
+});
+
 app.post("/auth/register", async (req, res) => {
   const { fullname, email, password } = req.body;
 
