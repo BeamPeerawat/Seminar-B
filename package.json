@@ -2,10 +2,8 @@
   "name": "auto-solar-backend",
   "version": "1.0.0",
   "main": "index.js",
-<<<<<<< HEAD
   "type": "module",
-=======
->>>>>>> dc785e337639946d4146130916d385f6205a7742
+
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
