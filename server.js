@@ -1,4 +1,5 @@
 // Import Dependencies
+<<<<<<< HEAD
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -6,6 +7,15 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import fetch from "node-fetch"; // ใช้สำหรับเรียกใช้งาน Line API
 import dotenv from "dotenv"; // ใช้ dotenv เพื่อโหลด environment variables
+=======
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const fetch = require("node-fetch"); // To handle Line API requests
+require("dotenv").config();
+>>>>>>> dc785e337639946d4146130916d385f6205a7742
 
 // Initialize App
 const app = express();
@@ -176,5 +186,8 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+<<<<<<< HEAD
 
 dotenv.config(); // เรียกใช้ dotenv
+=======
+>>>>>>> dc785e337639946d4146130916d385f6205a7742
