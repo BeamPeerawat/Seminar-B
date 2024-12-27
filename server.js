@@ -35,6 +35,14 @@ const User = mongoose.model(
   })
 );
 
+// Visitor Model
+const Visitor = mongoose.model(
+  "Visitor",
+  new mongoose.Schema({
+    count: { type: Number, default: 0 },
+  })
+);
+
 // JWT Middleware
 const verifyToken = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
@@ -55,16 +63,16 @@ const verifyToken = (req, res, next) => {
 
 // Auth Routes
 app.post("/api/admin/login", (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
-  // ตรวจสอบ Username และ Password
-  if (username === "admin" && password === "yourAdminPassword") {
-    const token = jwt.sign({ username }, process.env.JWT_SECRET, {
+  // ตรวจสอบ email และ password ของ admin
+  if (email === "AdminAutosolar@example.com" && password === "Autosoalr") {
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
-    res.json({ token });
+    return res.json({ token });
   } else {
-    res.status(400).json({ message: "Invalid Credentials" });
+    return res.status(400).json({ error: "Invalid Credentials" });
   }
 });
 
@@ -165,6 +173,50 @@ app.get("/quotations", verifyToken, (req, res) => {
 
 // Root Route
 app.get("/", (req, res) => {
+  res.send("API is running...");
+});
+
+// Route for incrementing visitor count
+app.post("/increment-visitor", async (req, res) => {
+  const visitor = await Visitor.findOne();
+  if (!visitor) {
+    const newVisitor = new Visitor({ count: 1 });
+    await newVisitor.save();
+    return res.json(newVisitor);
+  }
+
+  visitor.count += 1;
+  await visitor.save();
+  res.json(visitor);
+});
+
+// SSE Endpoint for real-time visitor count updates
+app.get("/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const sendVisitorCount = async () => {
+    const visitor = await Visitor.findOne();
+    res.write(`data: ${visitor ? visitor.count : 0}\n\n`);
+  };
+
+  // Initial data send
+  sendVisitorCount();
+
+  // Set interval to send updated count every 5 seconds
+  const intervalId = setInterval(sendVisitorCount, 5000);
+
+  // Clean up when connection is closed
+  req.on("close", () => {
+    clearInterval(intervalId);
+  });
+});
+
+// Root Route
+app.get("/", async (req, res) => {
+  // Increment visitor count every time someone hits the root route
+  await fetch("http://localhost:5000/increment-visitor", { method: "POST" });
   res.send("API is running...");
 });
 
