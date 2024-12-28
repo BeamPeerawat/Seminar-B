@@ -133,6 +133,91 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+// User Management Routes (CRUD)
+app.get("/api/users", async (req, res) => {
+  try {
+    // Find all users and return only the fullname and email fields
+    const users = await User.find({}, "fullname email");
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Error fetching users" });
+  }
+});
+// เพิ่มผู้ใช้ใหม่
+app.post("/api/users", async (req, res) => {
+  const { fullname, email, password } = req.body;
+
+  if (!fullname || !email || !password) {
+    return res
+      .status(400)
+      .json({ error: "Fullname, email, and password are required" });
+  }
+
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ fullname, email, password: hashedPassword });
+    await newUser.save();
+
+    res
+      .status(201)
+      .json({ message: "User created successfully", user: newUser });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// แก้ไขข้อมูลผู้ใช้
+app.put("/api/users/:id", async (req, res) => {
+  const { fullname, email, password } = req.body;
+  const { id } = req.params;
+
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.fullname = fullname || user.fullname;
+    user.email = email || user.email;
+    if (password) {
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    await user.save();
+    res.json({ message: "User updated successfully", user });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ลบผู้ใช้
+// ลบผู้ใช้
+app.delete("/api/users/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // ใช้ findByIdAndDelete แทน remove
+    await User.findByIdAndDelete(id);
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // Line API Routes
 app.post("/auth/exchange-code", async (req, res) => {
   const { code, state } = req.body;
