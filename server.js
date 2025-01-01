@@ -6,7 +6,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import fetch from "node-fetch"; // To handle Line API requests
 import dotenv from "dotenv";
-import quotationRoutes from './routes/quotationRoutes.js';
+import quotationRoutes from "./routes/quotationRoutes.js";
+import blogRoutes from "./routes/blogRoutes.js";
 dotenv.config();
 
 // Initialize App
@@ -16,7 +17,8 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: "http://localhost:3000" }));
-app.use('/quotations', quotationRoutes);
+app.use("/quotations", quotationRoutes);
+app.use("/api/blogs", blogRoutes);
 
 // MongoDB Connection
 mongoose
@@ -61,7 +63,6 @@ const verifyToken = (req, res, next) => {
 };
 
 // Routes
-
 // 1. Authentication Routes
 app.post("/api/admin/login", (req, res) => {
   const { email, password } = req.body;
@@ -80,7 +81,9 @@ app.post("/auth/register", async (req, res) => {
   const { fullname, email, password } = req.body;
 
   if (!fullname || !email || !password) {
-    return res.status(400).json({ error: "Fullname, email, and password are required" });
+    return res
+      .status(400)
+      .json({ error: "Fullname, email, and password are required" });
   }
 
   try {
@@ -146,7 +149,9 @@ app.post("/api/users", async (req, res) => {
   const { fullname, email, password } = req.body;
 
   if (!fullname || !email || !password) {
-    return res.status(400).json({ error: "Fullname, email, and password are required" });
+    return res
+      .status(400)
+      .json({ error: "Fullname, email, and password are required" });
   }
 
   try {
@@ -159,7 +164,9 @@ app.post("/api/users", async (req, res) => {
     const newUser = new User({ fullname, email, password: hashedPassword });
     await newUser.save();
 
-    res.status(201).json({ message: "User created successfully", user: newUser });
+    res
+      .status(201)
+      .json({ message: "User created successfully", user: newUser });
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(500).json({ error: "Server error" });
