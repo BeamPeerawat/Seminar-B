@@ -27,14 +27,17 @@
 
 import mongoose from "mongoose";
 
+// สร้าง Schema สำหรับผู้ใช้
 const userSchema = new mongoose.Schema({
-  lineId: { type: String, required: true, unique: true }, // lineId สำหรับการล็อกอิน
-  name: { type: String, required: true }, // ชื่อ
-  phone: { type: String, required: false }, // เปลี่ยนเป็นไม่จำเป็น
-  address: { type: String, required: false }, // เปลี่ยนเป็นไม่จำเป็น
-  email: { type: String }, // อีเมล์ (สามารถเป็น null ได้)
-  isProfileComplete: { type: Boolean, default: false }, // เช็คสถานะว่าโปรไฟล์สมบูรณ์หรือยัง
+  userId: { type: String, required: true, unique: true },
+  displayName: { type: String, required: true },
+  fullname: { type: String, required: true, default: "Anonymous" }, // เพิ่มการตั้งค่าหากเป็น null
+  pictureUrl: String,
+  statusMessage: String,
+  email: String,
 });
 
+// สร้าง Model ที่ชื่อ "User" จาก Schema
 const User = mongoose.model("User", userSchema);
+
 export default User;
