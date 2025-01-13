@@ -1,5 +1,3 @@
-// services/lineAuthService.js
-
 import axios from "axios";
 import dotenv from "dotenv";
 
@@ -25,7 +23,8 @@ export const exchangeCodeForToken = async (code, state) => {
     const response = await axios.post(lineTokenUrl, new URLSearchParams(data), {
       headers,
     });
-    console.log("Response data from LINE API:", response.data); // เพิ่มการตรวจสอบที่นี่
+
+    console.log("Response data from LINE API:", response.data); // ตรวจสอบคำตอบที่ได้รับจาก LINE API
 
     const { access_token, refresh_token, id_token } = response.data;
 
@@ -37,11 +36,15 @@ export const exchangeCodeForToken = async (code, state) => {
     return { access_token, refresh_token, id_token };
   } catch (error) {
     console.error("Error exchanging code for token:", error);
-    // ให้ข้อมูลข้อผิดพลาดที่ชัดเจนขึ้น
-    throw new Error(
-      `Error exchanging code for token: ${
-        error.response ? error.response.data.error_description : error.message
-      }`
-    );
+
+    // ถ้าข้อผิดพลาดเกิดจากการตอบกลับจาก LINE API
+    if (error.response) {
+      const { error_description, error } = error.response.data;
+      console.error("Error response from LINE API:", error_description);
+      throw new Error(`Error from LINE API: ${error_description || error}`);
+    }
+
+    // ถ้าไม่ใช่ข้อผิดพลาดจากการตอบกลับ (เช่นไม่สามารถเชื่อมต่อกับ API)
+    throw new Error(`Error exchanging code for token: ${error.message}`);
   }
 };

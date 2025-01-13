@@ -1,16 +1,17 @@
-// server.js
-
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
+import axios from "axios";
 import blogRoutes from "./routes/blogRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
 import connectDB from "./db.js";
 import { corsOptions } from "./config/corsConfig.js";
-import authenticate from "./middleware/authenticate.js";
 import { exchangeCode } from "./controllers/authController.js";
+import { getProfile } from "./controllers/profileController.js";
+import logger from "./utils/logger.js";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+app.use(helmet());
 app.use(express.json());
 app.use(cors(corsOptions));
 
@@ -28,39 +30,14 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
-app.get("/api/profile", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]; // รับ Token จาก header (Authorization: Bearer <token>)
-
-  if (!token) {
-    return res.status(400).json({ message: "Token is required" });
-  }
-
-  try {
-    // ใช้ access_token เพื่อดึงข้อมูลจาก LINE API
-    const response = await axios.get("https://api.line.me/v2/profile", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    // ส่งข้อมูลโปรไฟล์กลับไปยัง Frontend
-    res.json({
-      name: response.data.displayName,
-      email: response.data.email,
-      profilePicture: response.data.pictureUrl,
-    });
-  } catch (error) {
-    console.error("Error fetching profile:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to fetch profile", error: error.message });
-  }
-});
+app.get("/api/profile", getProfile);
 
 // Connect to Database
-connectDB();
+connectDB()
+  .then(() => logger.info("Connected to MongoDB successfully"))
+  .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
 // Start Server
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  logger.info(`Server is running on http://localhost:${PORT}`);
 });
