@@ -12,6 +12,7 @@ import { corsOptions } from "./config/corsConfig.js";
 import { exchangeCode } from "./controllers/authController.js";
 import { getProfile } from "./controllers/profileController.js";
 import logger from "./utils/logger.js";
+import profileRoutes from "./routes/profileRoutes.js";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
 app.get("/api/profile", getProfile);
+app.use("/api", profileRoutes);
 
 // Connect to Database
 connectDB()
