@@ -1,9 +1,8 @@
 import { exchangeCodeForToken } from "../services/lineAuthService.js";
-import User from "../models/User.js"; // Import User model to save user data
+import User from "../models/User.js"; // Import User model
 import logger from "../utils/logger.js";
 import fetch from "node-fetch";
 
-// Backend: ปรับให้มีการกำหนด role ก่อนส่งข้อมูลไปยัง Frontend
 export const exchangeCode = async (req, res) => {
   const { code, state } = req.body;
 
@@ -50,15 +49,12 @@ export const exchangeCode = async (req, res) => {
     const userProfile = await lineProfileResponse.json();
 
     // Check if user already exists in the database
-    let existingUser = await User.findOne({
-      $or: [{ userId: userProfile.userId }, { email: userProfile.email }],
-    });
+    let existingUser = await User.findOne({ userId: userProfile.userId });
 
     if (!existingUser) {
-      // If email exists, ensure it's unique
+      // If no user found, create a new user
       const email = userProfile.email || null;
 
-      // Create a new user
       const newUser = new User({
         userId: userProfile.userId,
         displayName: userProfile.displayName || "Anonymous",
@@ -66,6 +62,8 @@ export const exchangeCode = async (req, res) => {
         pictureUrl: userProfile.pictureUrl,
         statusMessage: userProfile.statusMessage,
         email,
+        role: "user", // Default role as 'user'
+        profileCompleted: false, // ค่าเริ่มต้นเมื่อผู้ใช้ยังไม่ได้กรอกข้อมูลครบถ้วน
       });
 
       // Save new user to the database
@@ -86,7 +84,7 @@ export const exchangeCode = async (req, res) => {
         displayName: existingUser.displayName,
         pictureUrl: existingUser.pictureUrl,
         statusMessage: existingUser.statusMessage,
-        role: existingUser.role, // ส่ง role กลับไปด้วย
+        role: existingUser.role, // Ensure role is sent back
       },
     });
   } catch (error) {
