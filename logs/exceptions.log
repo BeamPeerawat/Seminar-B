@@ -1,7 +1,6 @@
-2025-01-14T19:18:56.683Z [ERROR]: uncaughtException: Cannot overwrite `User` model once compiled.
-OverwriteModelError: Cannot overwrite `User` model once compiled.
-    at Mongoose.model (C:\Users\User\OneDrive - Rajamangala University of Technology Isan\Desktop\Project\Seminar-B-main\node_modules\mongoose\lib\mongoose.js:606:13)
-    at file:///C:/Users/User/OneDrive%20-%20Rajamangala%20University%20of%20Technology%20Isan/Desktop/Project/Seminar-B-main/models/userModel.js:11:23
+2025-01-24T09:23:04.286Z [ERROR]: uncaughtException: getProfileFromDB is not defined
+ReferenceError: getProfileFromDB is not defined
+    at file:///C:/Users/User/OneDrive%20-%20Rajamangala%20University%20of%20Technology%20Isan/Desktop/Project/Seminar-B-main/routes/profileRoutes.js:9:37
     at ModuleJob.run (node:internal/modules/esm/module_job:234:25)
     at async ModuleLoader.import (node:internal/modules/esm/loader:473:24)
     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:123:5)

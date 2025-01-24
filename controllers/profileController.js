@@ -102,3 +102,35 @@ export const saveProfile = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to save profile" });
   }
 };
+
+// ดึงข้อมูลโปรไฟล์จากฐานข้อมูล
+export const getProfileFromDB = async (req, res) => {
+  const { userId } = req.body; // รับ userId จาก body (หรืออาจจะใช้ req.userId ถ้าทำการ authenticate แล้ว)
+
+  if (!userId) {
+    return res.status(400).json({ message: "Missing userId" });
+  }
+
+  try {
+    // ค้นหาข้อมูลโปรไฟล์จากฐานข้อมูลด้วย userId
+    const profile = await Profile.findOne({ userId });
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    // ส่งข้อมูลโปรไฟล์กลับไป
+    res.json({
+      name: profile.name,
+      address: profile.address,
+      phone: profile.phone,
+      email: profile.email,
+    });
+  } catch (error) {
+    console.error("Error fetching profile from database:", error.message);
+    res.status(500).json({
+      message: "Failed to fetch profile from database",
+      error: error.message,
+    });
+  }
+};
