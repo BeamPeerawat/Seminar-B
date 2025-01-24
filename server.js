@@ -31,7 +31,6 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
-app.get("/api/profile", getProfile);
 app.use("/api", profileRoutes);
 
 // Connect to Database
