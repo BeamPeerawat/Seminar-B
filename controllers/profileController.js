@@ -78,7 +78,23 @@ export const saveProfile = async (req, res) => {
 
     console.log("Save profile request body:", req.body);
 
-    // บันทึกข้อมูลในโปรไฟล์
+    // ตรวจสอบว่ามีโปรไฟล์ของ userId นี้ในฐานข้อมูลหรือไม่
+    const existingProfile = await Profile.findOne({ userId });
+
+    if (existingProfile) {
+      // ถ้ามีโปรไฟล์แล้ว -> อัปเดตข้อมูลแทน
+      const updatedProfile = await Profile.findOneAndUpdate(
+        { userId },
+        { name, address, phone, email },
+        { new: true }
+      );
+
+      console.log("Profile updated:", updatedProfile);
+
+      return res.status(200).json({ success: true, user: updatedProfile });
+    }
+
+    // ถ้าไม่มีโปรไฟล์ -> สร้างใหม่
     const newProfile = new Profile({
       name,
       address,
@@ -89,7 +105,7 @@ export const saveProfile = async (req, res) => {
 
     await newProfile.save();
 
-    // อัพเดต `profileCompleted` ใน `User` model
+    // อัปเดต `profileCompleted` ใน `User` model
     await User.findOneAndUpdate(
       { userId }, // ใช้ userId แทน email
       { profileCompleted: true },
