@@ -13,7 +13,7 @@ import { exchangeCode } from "./controllers/authController.js";
 import { getProfile } from "./controllers/profileController.js";
 import logger from "./utils/logger.js";
 import profileRoutes from "./routes/profileRoutes.js";
-
+import orderRoutes from "./routes/orderRoutes.js";
 dotenv.config();
 
 // Initialize App
@@ -32,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
 app.use("/api", profileRoutes);
+app.use("/api/orders", orderRoutes);
 
 // Connect to Database
 connectDB()
