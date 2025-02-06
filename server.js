@@ -34,14 +34,17 @@ app.post("/api/auth/exchange-code", exchangeCode);
 app.use("/api", profileRoutes);
 app.use("/api/orders", orderRoutes);
 
+// Route สำหรับหน้าแรก
+app.get("/", (req, res) => {
+  res.send("Hello, World! Your backend is working correctly.");
+});
+
 // Connect to Database
 connectDB()
   .then(() => logger.info("Connected to MongoDB successfully"))
   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
-  app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก
-    logger.info(`Server is running on http://localhost:${PORT}`);
-  });
-  
-
-
+// Start Server
+app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก
+  logger.info(`Server is running on http://localhost:${PORT}`);
+});
