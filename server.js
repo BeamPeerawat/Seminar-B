@@ -18,7 +18,7 @@ dotenv.config();
 
 // Initialize App
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // ใช้ process.env.PORT ที่ Render กำหนด หรือ 5000 ถ้าไม่กำหนด
 
 // Middleware
 app.use(helmet());
@@ -40,7 +40,7 @@ connectDB()
   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
 // Start Server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => { // ใช้ 0.0.0.0 เพื่อให้เซิร์ฟเวอร์ฟังจากทุก IP
   logger.info(`Server is running on http://localhost:${PORT}`);
 });
 
