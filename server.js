@@ -39,7 +39,7 @@ connectDB()
   .then(() => logger.info("Connected to MongoDB successfully"))
   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
-  app.listen(PORT, () => { 
+  app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก
     logger.info(`Server is running on http://localhost:${PORT}`);
   });
   
