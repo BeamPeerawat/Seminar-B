@@ -36,3 +36,13 @@
 2025-01-31T21:49:55.584Z [INFO]: Connected to MongoDB successfully
 2025-01-31T21:57:57.047Z [INFO]: Server is running on http://localhost:5000
 2025-01-31T21:57:57.691Z [INFO]: Connected to MongoDB successfully
+2025-02-02T16:53:57.153Z [INFO]: Server is running on http://localhost:5000
+2025-02-02T16:53:57.757Z [INFO]: Connected to MongoDB successfully
+2025-02-02T16:54:30.396Z [INFO]: User already exists:
+2025-02-06T11:34:37.556Z [INFO]: Server is running on http://localhost:5000
+2025-02-06T11:34:38.097Z [INFO]: Connected to MongoDB successfully
+2025-02-06T11:54:04.461Z [INFO]: User already exists:
+2025-02-06T11:54:44.690Z [INFO]: User already exists:
+2025-02-06T12:33:58.487Z [INFO]: User already exists:
+2025-02-06T16:16:56.529Z [INFO]: Server is running on http://localhost:5000
+2025-02-06T16:16:57.061Z [INFO]: Connected to MongoDB successfully
