@@ -40,7 +40,8 @@ connectDB()
   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
 // Start Server
-app.listen(PORT, '0.0.0.0', () => { // ใช้ 0.0.0.0 เพื่อให้เซิร์ฟเวอร์ฟังจากทุก IP
-  logger.info(`Server is running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => { // ให้ใช้ 0.0.0.0
+  logger.info(`Server is running on http://0.0.0.0:${PORT}`);
 });
+
 
