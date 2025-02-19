@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "cors";
+import cors from "";
 import helmet from "helmet";
 import axios from "axios";
 import blogRoutes from "./routes/blogRoutes.js";
@@ -54,6 +54,9 @@ app.post("/api/check-profile", async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// อนุญาต Preflight Request สำหรับทุก route
+app.options("*", cors(corsOptions));
 
 // Connect to Database
 connectDB()
