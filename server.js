@@ -15,6 +15,7 @@ import logger from "./utils/logger.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import User from "./models/User.js"; // ✅ ต้องนำเข้า User model
+import jwt from "jsonwebtoken"; // เพิ่มบรรทัดนี้
 dotenv.config();
 
 // Initialize App
