@@ -15,8 +15,7 @@ const orderSchema = new mongoose.Schema({
     email: String,
     address: String,
   },
-  lineUserId: { type: String, required: true }, // เพิ่มฟิลด์นี้
-  paymentMethod: String,
+  paymentMethod: String, // เพิ่มฟิลด์นี้
   status: {
     type: String,
     enum: ["pending", "completed", "cancelled"],
