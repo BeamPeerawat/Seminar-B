@@ -52,17 +52,21 @@ app.get("/api/user", async (req, res) => {
     // ถอดรหัส Token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // ค้นหาผู้ใช้ในฐานข้อมูล
+    // ค้นหาผู้ใช้ด้วย _id จาก Token
     const user = await User.findById(decoded.userId).select("-password");
     
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // ส่งข้อมูลผู้ใช้กลับ
     res.json({ success: true, user });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Error in /api/user:", error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
   }
 });
 
