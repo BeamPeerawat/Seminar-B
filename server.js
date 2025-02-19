@@ -40,6 +40,32 @@ app.get("/", (req, res) => {
   res.send("Hello, World! Your backend is working correctly.");
 });
 
+// เพิ่ม route สำหรับดึงข้อมูลผู้ใช้
+app.get("/api/user", async (req, res) => {
+  try {
+    // ดึง Token จาก Header
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // ถอดรหัส Token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // ค้นหาผู้ใช้ในฐานข้อมูล
+    const user = await User.findById(decoded.userId).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // ส่งข้อมูลผู้ใช้กลับ
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // เพิ่ม route สำหรับตรวจสอบโปรไฟล์
 app.post("/api/check-profile", async (req, res) => {
   try {
