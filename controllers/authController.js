@@ -95,10 +95,12 @@
 //   }
 // };
 
+import mongoose from "mongoose";
 import { exchangeCodeForToken } from "../services/lineAuthService.js";
 import User from "../models/User.js"; // Import User model
 import logger from "../utils/logger.js";
 import fetch from "node-fetch";
+import jwt from "jsonwebtoken"; // เพิ่มการนำเข้า jwt
 
 export const exchangeCode = async (req, res) => {
   const { code, state } = req.body;
@@ -166,16 +168,25 @@ export const exchangeCode = async (req, res) => {
       logger.info("User already exists:", existingUser);
     }
 
+    // สร้าง JWT Token สำหรับผู้ใช้
+    const token = jwt.sign(
+      { userId: existingUser._id }, // ใช้ _id จาก MongoDB
+      process.env.JWT_SECRET, // ใช้ JWT_SECRET จาก .env
+      { expiresIn: "1d" } // กำหนดอายุ Token
+    );
+
     // Respond with tokens and user data
     res.json({
       message: "Login successful",
-      accessToken: tokens.access_token,
+      accessToken: tokens.access_token, // Token จาก LINE
+      jwtToken: token, // Token ที่สร้างจาก JWT
       user: {
         userId: existingUser.userId,
         displayName: existingUser.displayName,
         pictureUrl: existingUser.pictureUrl,
         statusMessage: existingUser.statusMessage,
         role: existingUser.role, // Ensure role is sent back
+        profileCompleted: existingUser.profileCompleted, // ส่งสถานะการกรอกข้อมูล
       },
     });
   } catch (error) {

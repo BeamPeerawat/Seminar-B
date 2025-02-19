@@ -1,14 +1,18 @@
-// backend/routes/orderRoutes.js
 import express from "express";
 import Order from "../models/Order.js";
+import authenticate from "../middleware/authenticate.js"; // นำเข้า authenticate
+import { authMiddleware } from "../middleware/authMiddleware.js"; // นำเข้า authMiddleware
 
 const router = express.Router();
 
-router.post("/", async (req, res) => {
+// ใช้ authenticate และ authMiddleware ร่วมกัน
+router.post("/", authenticate, authMiddleware, async (req, res) => {
   try {
     const { items, total, customer, paymentMethod } = req.body;
 
+    // สร้างคำสั่งซื้อและเชื่อมโยงกับผู้ใช้ที่ล็อกอิน
     const order = await Order.create({
+      user: req.user._id, // ใช้ req.user._id จาก authenticate
       items,
       total,
       customer,
@@ -25,7 +29,7 @@ router.post("/", async (req, res) => {
     res.status(201).json({
       success: true,
       orderId: order._id,
-      order: order.toObject(), // แปลงข้อมูลให้ถูกต้อง
+      order: order.toObject(),
     });
   } catch (error) {
     res.status(500).json({
