@@ -185,8 +185,8 @@ export const exchangeCode = async (req, res) => {
         displayName: existingUser.displayName,
         pictureUrl: existingUser.pictureUrl,
         statusMessage: existingUser.statusMessage,
-        role: existingUser.role, // Ensure role is sent back
-        profileCompleted: existingUser.profileCompleted, // ส่งสถานะการกรอกข้อมูล
+        role: existingUser.role,
+        profileCompleted: existingUser.profileCompleted,
       },
     });
   } catch (error) {

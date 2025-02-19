@@ -39,6 +39,22 @@ app.get("/", (req, res) => {
   res.send("Hello, World! Your backend is working correctly.");
 });
 
+// เพิ่ม route สำหรับตรวจสอบโปรไฟล์
+app.post("/api/check-profile", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await User.findOne({ userId });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, profileCompleted: user.profileCompleted });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Connect to Database
 connectDB()
   .then(() => logger.info("Connected to MongoDB successfully"))
