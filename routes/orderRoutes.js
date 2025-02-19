@@ -1,10 +1,11 @@
 // backend/routes/orderRoutes.js
 import express from "express";
 import Order from "../models/Order.js";
-import { verifyToken } from "../middleware/authMiddleware.js"; // ต้องมี middleware นี้
+import { verifyToken } from "../middleware/authMiddleware.js"; // ใช้ verifyToken middleware
 
 const router = express.Router();
 
+// ใช้ verifyToken ในการตรวจสอบการเข้าถึง
 router.post("/", verifyToken, async (req, res) => {
   try {
     const { items, total, customer, paymentMethod } = req.body;
@@ -37,8 +38,8 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// ใช้ authMiddleware เพื่อป้องกันการเข้าถึงโดยไม่ได้รับอนุญาต
-router.get("/user-orders", authMiddleware, async (req, res) => {
+// ใช้ verifyToken ในการตรวจสอบการเข้าถึง
+router.get("/user-orders", verifyToken, async (req, res) => {
   try {
     const lineUserId = req.user.lineUserId; // ดึง lineUserId จาก req.user
     const orders = await Order.find({ lineUserId }).sort({ createdAt: -1 });
