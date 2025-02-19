@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "";
+import cors from "cors"; // ✅ ถูกต้อง
 import helmet from "helmet";
 import axios from "axios";
 import blogRoutes from "./routes/blogRoutes.js";
@@ -14,6 +14,7 @@ import { getProfile } from "./controllers/profileController.js";
 import logger from "./utils/logger.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import User from "./models/User.js"; // ✅ ต้องนำเข้า User model
 dotenv.config();
 
 // Initialize App
