@@ -1,11 +1,7 @@
+// backend/models/Order.js
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
-  user: { 
-    type: mongoose.Schema.Types.ObjectId, // เก็บ ObjectId ของผู้ใช้
-    ref: 'User', // อ้างอิงไปยังโมเดล User
-    required: true // ต้องมีผู้ใช้เสมอ
-  },
   items: [
     {
       name: String,
