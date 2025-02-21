@@ -139,12 +139,7 @@ export const exchangeCode = async (req, res) => {
 
     if (!existingUser) {
       // If no user found, create a new user
-      let email = userProfile.email;
-
-      // If email is null, set to a default value or avoid saving it
-      if (!email) {
-        email = "default@example.com"; // หรือกำหนดเป็นค่า default อื่นๆ
-      }
+      const email = userProfile.email || null; // ใช้ null ถ้า email ไม่มี
 
       const newUser = new User({
         userId: userProfile.userId,
@@ -152,9 +147,9 @@ export const exchangeCode = async (req, res) => {
         fullname: userProfile.displayName || "Anonymous",
         pictureUrl: userProfile.pictureUrl,
         statusMessage: userProfile.statusMessage,
-        email, // Ensure email is never null
+        email, // อนุญาตให้ email เป็น null
         role: "user", // Default role as 'user'
-        profileCompleted: false, // ค่าเริ่มต้นเมื่อผู้ใช้ยังไม่ได้กรอกข้อมูลครบถ้วน
+        profileCompleted: !email, // ถ้าไม่มี email ให้ profileCompleted เป็น false
       });
 
       // Save new user to the database
@@ -176,6 +171,7 @@ export const exchangeCode = async (req, res) => {
         pictureUrl: existingUser.pictureUrl,
         statusMessage: existingUser.statusMessage,
         role: existingUser.role, // Ensure role is sent back
+        profileCompleted: existingUser.profileCompleted, // ส่งสถานะ profileCompleted กลับไปด้วย
       },
     });
   } catch (error) {
