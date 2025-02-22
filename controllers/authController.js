@@ -142,7 +142,7 @@ export const exchangeCode = async (req, res) => {
 
     if (!existingUser) {
       // If no user found, create a new user
-      const email = userProfile.email || null; // ใช้ email จาก LINE ถ้ามี หรือ null ถ้าไม่มี
+      const email = userProfile.email; // ใช้ email จาก LINE API โดยตรง (ไม่ใช้ || null)
 
       const newUser = new User({
         userId: userProfile.userId,
@@ -150,7 +150,7 @@ export const exchangeCode = async (req, res) => {
         fullname: userProfile.displayName || "Anonymous",
         pictureUrl: userProfile.pictureUrl,
         statusMessage: userProfile.statusMessage,
-        email, // บันทึก email ถ้ามี หรือ null ถ้าไม่มี
+        email: email || null, // บันทึก email ถ้ามี หรือ null ถ้าไม่มี
         role: "user",
         profileCompleted: !!email, // ตั้งค่าเป็น true เฉพาะเมื่อมี email
       });
@@ -165,8 +165,8 @@ export const exchangeCode = async (req, res) => {
       if (userProfile.email) {
         existingUser.email = userProfile.email; // อัปเดต email ถ้ามีจาก LINE
         existingUser.profileCompleted = true; // ตั้งค่าเป็น true ถ้ามี email
-      } else if (existingUser.email === null && !existingUser.address && !existingUser.phone) {
-        existingUser.profileCompleted = false; // ยังคงเป็น false ถ้ายังไม่มีข้อมูลอื่น
+      } else if (existingUser.email === null) {
+        existingUser.profileCompleted = false; // ยังคงเป็น false ถ้ายังไม่มี email
       }
       await existingUser.save();
       logger.info("User already exists, updated if necessary:", existingUser);
@@ -200,7 +200,7 @@ export const updateProfileCompleted = async (req, res) => {
 
   try {
     const user = await User.findOneAndUpdate(
-      { userId },
+      { userId }, // ใช้ userId เป็น String
       { profileCompleted, updatedAt: Date.now() }, // อัปเดต timestamp ด้วย
       { new: true, runValidators: true }
     );

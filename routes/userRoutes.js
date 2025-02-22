@@ -1,52 +1,48 @@
 import express from "express";
-import mongoose from "mongoose"; // เพิ่มการนำเข้า mongoose
 import User from "../models/User.js";
 import Profile from "../models/Profile.js";
 
 const router = express.Router();
 
-// ล็อกอินด้วยไลน์ (ไม่เปลี่ยนแปลงมาก แต่ใช้ profileCompleted แทน isProfileComplete)
+// ล็อกอินด้วยไลน์ (ใช้ userId เป็น String)
 router.post("/login", async (req, res) => {
-  const { lineId, name, profileImage } = req.body;
+  const { userId, name, profileImage } = req.body; // ใช้ userId แทน lineId
 
   try {
-    let user = await User.findOne({ lineId });
+    let user = await User.findOne({ userId }); // ใช้ userId เป็น String
     if (!user) {
-      user = await User.create({ lineId, name, profileImage });
+      user = await User.create({ userId, name, profileImage });
     }
 
     // ตรวจสอบสถานะโปรไฟล์จาก Profile model
-    const profile = await Profile.findOne({ userId: user._id });
+    const profile = await Profile.findOne({ userId });
     const profileCompleted = profile ? profile.profileCompleted : false;
 
     if (!profileCompleted) {
       return res
         .status(200)
-        .json({ profileCompleted: false, userId: user._id });
+        .json({ profileCompleted: false, userId: user.userId }); // ใช้ userId เป็น String
     }
 
-    res.status(200).json({ profileCompleted: true, userId: user._id });
+    res.status(200).json({ profileCompleted: true, userId: user.userId });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST - บันทึกโปรไฟล์ (ใช้ Profile model)
+// POST - บันทึกโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 router.post("/profile", async (req, res) => {
   const { userId, fullName, address, phoneNumber, email, profileImage } =
     req.body;
 
   try {
-    // แปลง userId เป็น ObjectId
-    const userIdObjectId = new mongoose.Types.ObjectId(userId);
-
     // ตรวจสอบว่าผู้ใช้มีโปรไฟล์อยู่ในระบบแล้วใน Profile model
-    let profile = await Profile.findOne({ userId: userIdObjectId });
+    let profile = await Profile.findOne({ userId }); // ใช้ userId เป็น String
 
     if (!profile) {
       // ถ้ายังไม่มีโปรไฟล์ให้สร้างใหม่ใน Profile model
       profile = new Profile({
-        userId: userIdObjectId,
+        userId, // ใช้ userId เป็น String
         name: fullName,
         address,
         phone: phoneNumber,
@@ -68,7 +64,7 @@ router.post("/profile", async (req, res) => {
     await profile.save();
 
     // อัปเดตสถานะโปรไฟล์ใน User model
-    const user = await User.findById(userIdObjectId);
+    const user = await User.findOne({ userId }); // ใช้ userId เป็น String
     if (user) {
       user.profileCompleted = true; // อัปเดต profileCompleted ใน User
       user.updatedAt = Date.now();
@@ -81,13 +77,10 @@ router.post("/profile", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลโปรไฟล์ (ใช้ Profile model)
+// ดึงข้อมูลโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 router.get("/profile/:userId", async (req, res) => {
   try {
-    // แปลง userId เป็น ObjectId
-    const userId = new mongoose.Types.ObjectId(req.params.userId);
-
-    const profile = await Profile.findOne({ userId });
+    const profile = await Profile.findOne({ userId: req.params.userId }); // ใช้ userId เป็น String
     if (!profile) {
       return res.status(404).json({ error: "Profile not found." });
     }
