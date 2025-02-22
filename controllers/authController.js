@@ -134,12 +134,18 @@ export const exchangeCode = async (req, res) => {
 
     const userProfile = await lineProfileResponse.json();
 
+    // Log the user profile to debug
+    logger.debug("LINE User Profile:", userProfile);
+
     // Check if user already exists in the database
     let existingUser = await User.findOne({ userId: userProfile.userId });
 
     if (!existingUser) {
       // If no user found, create a new user
-      const email = userProfile.email || null; // ใช้ email จาก LINE ถ้ามี หรือ null ถ้าไม่มี
+      const email = userProfile.email; // ใช้ email จาก LINE API โดยตรง (ไม่ใช้ || null)
+
+      // Log the email value for debugging
+      logger.debug("Email from LINE API:", email);
 
       const newUser = new User({
         userId: userProfile.userId,
@@ -147,8 +153,8 @@ export const exchangeCode = async (req, res) => {
         fullname: userProfile.displayName || "Anonymous",
         pictureUrl: userProfile.pictureUrl,
         statusMessage: userProfile.statusMessage,
-        email, // บันทึก email ถ้ามี หรือ null ถ้าไม่มี
-        role: "user", // Default role as 'user'
+        email: email || null, // ถ้าไม่มี email จาก LINE API ให้ใช้ null
+        role: "user",
         profileCompleted: !!email, // ตั้งค่าเป็น true เฉพาะเมื่อมี email
       });
 
