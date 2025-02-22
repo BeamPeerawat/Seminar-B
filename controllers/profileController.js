@@ -1,9 +1,9 @@
 import axios from "axios";
-import Profile from "../models/Profile.js"; // นำเข้า Model ใหม่
-import User from "../models/User.js"; // เพิ่มการนำเข้า User model
+import Profile from "../models/Profile.js"; // นำเข้า Model Profile
+import User from "../models/User.js"; // นำเข้า User model
 import logger from "../utils/logger.js"; // เพิ่มบรรทัดนี้
 
-// ดึงข้อมูลโปรไฟล์จาก LINE
+// ดึงข้อมูลโปรไฟล์จาก LINE (ไม่เปลี่ยนแปลง)
 export const getProfile = async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -43,10 +43,11 @@ export const checkProfile = async (req, res) => {
 
   try {
     logger.debug("Request body for checkProfile:", req.body); // Logging request body
-    const user = await User.findOne({ userId }); // ใช้ User model แทน Profile
+    const user = await User.findOne({ userId }); // ใช้ User model เพื่อหา userId
 
     if (user) {
-      return res.json({ profileCompleted: user.profileCompleted });
+      const profile = await Profile.findOne({ userId: user._id });
+      return res.json({ profileCompleted: profile ? profile.profileCompleted : false });
     } else {
       return res.json({ profileCompleted: false });
     }
@@ -56,7 +57,7 @@ export const checkProfile = async (req, res) => {
   }
 };
 
-// บันทึกข้อมูลโปรไฟล์
+// บันทึกข้อมูลโปรไฟล์ (ใช้ Profile model แทน User model)
 export const saveProfile = async (req, res) => {
   try {
     const { name, address, phone, email, userId } = req.body; // ดึง userId จาก req.body
@@ -70,55 +71,50 @@ export const saveProfile = async (req, res) => {
 
     logger.debug("Save profile request body:", req.body);
 
-    // ตรวจสอบว่ามีโปรไฟล์ของ userId นี้ในฐานข้อมูล User หรือไม่
-    const existingUser = await User.findOne({ userId });
+    // แปลง userId เป็น ObjectId
+    const userIdObjectId = new mongoose.Types.ObjectId(userId);
 
-    if (existingUser) {
-      // ถ้ามีผู้ใช้แล้ว -> อัปเดตข้อมูลใน User model
-      existingUser.displayName = name; // อัปเดต displayName
-      existingUser.fullname = name; // อัปเดต fullname
-      existingUser.email = email || null; // อนุญาตให้ email เป็น null
-      existingUser.address = address; // เพิ่ม field address
-      existingUser.phone = phone; // เพิ่ม field phone
-      existingUser.profileCompleted = true; // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
-      existingUser.updatedAt = Date.now(); // อัปเดต timestamp
+    // ตรวจสอบว่ามีโปรไฟล์ของ userId นี้ในฐานข้อมูล Profile หรือไม่
+    let profile = await Profile.findOne({ userId: userIdObjectId });
 
-      await existingUser.save();
-      logger.info("User profile updated:", existingUser);
-
-      return res.status(200).json({
-        success: true,
-        user: {
-          userId: existingUser.userId,
-          displayName: existingUser.displayName,
-          email: existingUser.email,
-          profileCompleted: existingUser.profileCompleted,
-        },
+    if (!profile) {
+      // ถ้ายังไม่มีโปรไฟล์ให้สร้างใหม่ใน Profile model
+      profile = new Profile({
+        userId: userIdObjectId,
+        name,
+        address,
+        phone,
+        email: email || null, // อนุญาตให้ email เป็น null
+        profileCompleted: true, // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
       });
+    } else {
+      // ถ้ามีโปรไฟล์แล้วให้ทำการอัปเดต
+      profile.name = name;
+      profile.address = address;
+      profile.phone = phone;
+      profile.email = email || null; // อนุญาตให้ email เป็น null
+      profile.profileCompleted = true; // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
     }
 
-    // ถ้าไม่มีผู้ใช้ -> สร้างใหม่ใน User model (ไม่ใช้ Profile model)
-    const newUser = new User({
-      userId,
-      displayName: name,
-      fullname: name,
-      email: email || null, // อนุญาตให้ email เป็น null
-      address, // เพิ่ม field address
-      phone, // เพิ่ม field phone
-      role: "user",
-      profileCompleted: true, // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
-    });
+    // บันทึกโปรไฟล์ในฐานข้อมูล Profile
+    await profile.save();
+    logger.info("Profile saved or updated:", profile);
 
-    await newUser.save();
-    logger.info("New user profile created:", newUser);
+    // อัปเดตสถานะใน User model (ถ้าจำเป็น)
+    const user = await User.findById(userIdObjectId);
+    if (user) {
+      user.profileCompleted = true; // อัปเดต profileCompleted ใน User
+      user.updatedAt = Date.now();
+      await user.save();
+    }
 
     res.status(200).json({
       success: true,
       user: {
-        userId: newUser.userId,
-        displayName: newUser.displayName,
-        email: newUser.email,
-        profileCompleted: newUser.profileCompleted,
+        userId,
+        name,
+        email: profile.email,
+        profileCompleted: profile.profileCompleted,
       },
     });
   } catch (error) {
@@ -127,29 +123,40 @@ export const saveProfile = async (req, res) => {
   }
 };
 
-// อัปเดตสถานะ profileCompleted
+// อัปเดตสถานะ profileCompleted (ใช้ Profile model)
 export const updateProfileCompleted = async (req, res) => {
   const { userId, profileCompleted } = req.body;
 
   try {
-    const user = await User.findOneAndUpdate(
-      { userId },
+    // แปลง userId เป็น ObjectId
+    const userIdObjectId = new mongoose.Types.ObjectId(userId);
+
+    const profile = await Profile.findOneAndUpdate(
+      { userId: userIdObjectId },
       { profileCompleted, updatedAt: Date.now() }, // อัปเดต timestamp ด้วย
       { new: true, runValidators: true }
     );
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
     }
 
-    res.json({ message: "Profile status updated successfully", user });
+    // อัปเดตสถานะใน User model ด้วย
+    const user = await User.findById(userIdObjectId);
+    if (user) {
+      user.profileCompleted = profileCompleted;
+      user.updatedAt = Date.now();
+      await user.save();
+    }
+
+    res.json({ message: "Profile status updated successfully", profile });
   } catch (error) {
     logger.error("Error updating profile completed status:", error);
     res.status(500).json({ error: "Failed to update profile status" });
   }
 };
 
-// ดึงข้อมูลโปรไฟล์จากฐานข้อมูล
+// ดึงข้อมูลโปรไฟล์จากฐานข้อมูล (ใช้ Profile model)
 export const getProfileFromDB = async (req, res) => {
   const { userId } = req.body; // รับ userId จาก body
 
@@ -158,20 +165,23 @@ export const getProfileFromDB = async (req, res) => {
   }
 
   try {
-    // ค้นหาข้อมูลโปรไฟล์จาก User model ด้วย userId
-    const user = await User.findOne({ userId });
+    // แปลง userId เป็น ObjectId
+    const userIdObjectId = new mongoose.Types.ObjectId(userId);
 
-    if (!user) {
+    // ค้นหาข้อมูลโปรไฟล์จาก Profile model ด้วย userId
+    const profile = await Profile.findOne({ userId: userIdObjectId });
+
+    if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
     // ส่งข้อมูลโปรไฟล์กลับไป
     res.json({
-      name: user.displayName,
-      address: user.address,
-      phone: user.phone,
-      email: user.email,
-      profileCompleted: user.profileCompleted,
+      name: profile.name,
+      address: profile.address,
+      phone: profile.phone,
+      email: profile.email,
+      profileCompleted: profile.profileCompleted,
     });
   } catch (error) {
     logger.error("Error fetching profile from database:", error.message);
