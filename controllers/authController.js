@@ -97,6 +97,7 @@
 
 import { exchangeCodeForToken } from "../services/lineAuthService.js";
 import User from "../models/User.js"; // Import User model
+import Profile from "../models/Profile.js"; // นำเข้า Profile model
 import logger from "../utils/logger.js";
 import fetch from "node-fetch";
 
@@ -142,17 +143,14 @@ export const exchangeCode = async (req, res) => {
 
     if (!existingUser) {
       // If no user found, create a new user
-      const email = userProfile.email; // ใช้ email จาก LINE API โดยตรง (ไม่ใช้ || null)
-
       const newUser = new User({
         userId: userProfile.userId,
         displayName: userProfile.displayName || "Anonymous",
         fullname: userProfile.displayName || "Anonymous",
         pictureUrl: userProfile.pictureUrl,
         statusMessage: userProfile.statusMessage,
-        email: email || null, // บันทึก email ถ้ามี หรือ null ถ้าไม่มี
         role: "user",
-        profileCompleted: !!email, // ตั้งค่าเป็น true เฉพาะเมื่อมี email
+        profileCompleted: false, // ตั้งค่าเป็น false เริ่มต้น (เช็คจาก profiles)
       });
 
       // Save new user to the database
@@ -161,15 +159,11 @@ export const exchangeCode = async (req, res) => {
 
       existingUser = newUser;
     } else {
-      // If user exists, update email if provided by LINE (but don't override if null)
-      if (userProfile.email) {
-        existingUser.email = userProfile.email; // อัปเดต email ถ้ามีจาก LINE
-        existingUser.profileCompleted = true; // ตั้งค่าเป็น true ถ้ามี email
-      } else if (existingUser.email === null) {
-        existingUser.profileCompleted = false; // ยังคงเป็น false ถ้ายังไม่มี email
-      }
+      // If user exists, check profileCompleted from Profile model
+      const profile = await Profile.findOne({ userId: existingUser.userId });
+      existingUser.profileCompleted = profile ? profile.profileCompleted : false;
       await existingUser.save();
-      logger.info("User already exists, updated if necessary:", existingUser);
+      logger.info("User already exists, updated profileCompleted:", existingUser);
     }
 
     // Respond with tokens and user data
@@ -182,7 +176,6 @@ export const exchangeCode = async (req, res) => {
         pictureUrl: existingUser.pictureUrl,
         statusMessage: existingUser.statusMessage,
         role: existingUser.role,
-        email: existingUser.email, // ส่ง email กลับไปด้วย (ถ้ามี)
         profileCompleted: existingUser.profileCompleted,
       },
     });

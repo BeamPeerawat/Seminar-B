@@ -60,7 +60,7 @@ export const checkProfile = async (req, res) => {
 // บันทึกข้อมูลโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 export const saveProfile = async (req, res) => {
   try {
-    const { name, address, phone, email, userId } = req.body; // ดึง userId จาก req.body
+    const { name, address, phone, email, userId } = req.body;
 
     if (!userId || !name || !address || !phone) {
       return res.status(400).json({
@@ -97,7 +97,7 @@ export const saveProfile = async (req, res) => {
     await profile.save();
     logger.info("Profile saved or updated:", profile);
 
-    // อัปเดตสถานะใน User model (ถ้าจำเป็น)
+    // อัปเดตสถานะใน User model
     const user = await User.findOne({ userId });
     if (user) {
       user.profileCompleted = true; // อัปเดต profileCompleted ใน User
