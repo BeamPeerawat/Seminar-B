@@ -109,7 +109,7 @@ export const exchangeCode = async (req, res) => {
   }
 
   try {
-    // Exchange code for tokens
+    // Exchange code for tokens from LINE API
     const tokens = await exchangeCodeForToken(code, state);
 
     if (!tokens.access_token) {
@@ -134,7 +134,7 @@ export const exchangeCode = async (req, res) => {
 
     const userProfile = await lineProfileResponse.json();
 
-    // Log the user profile to debug
+    // Log the user profile for debugging
     logger.debug("LINE User Profile:", userProfile);
 
     // Check if user already exists in the database
@@ -142,10 +142,7 @@ export const exchangeCode = async (req, res) => {
 
     if (!existingUser) {
       // If no user found, create a new user
-      const email = userProfile.email; // ใช้ email จาก LINE API โดยตรง (ไม่ใช้ || null)
-
-      // Log the email value for debugging
-      logger.debug("Email from LINE API:", email);
+      const email = userProfile.email || null; // ใช้ email จาก LINE ถ้ามี หรือ null ถ้าไม่มี
 
       const newUser = new User({
         userId: userProfile.userId,
@@ -153,7 +150,7 @@ export const exchangeCode = async (req, res) => {
         fullname: userProfile.displayName || "Anonymous",
         pictureUrl: userProfile.pictureUrl,
         statusMessage: userProfile.statusMessage,
-        email: email || null, // ถ้าไม่มี email จาก LINE API ให้ใช้ null
+        email, // บันทึก email ถ้ามี หรือ null ถ้าไม่มี
         role: "user",
         profileCompleted: !!email, // ตั้งค่าเป็น true เฉพาะเมื่อมี email
       });
@@ -164,7 +161,16 @@ export const exchangeCode = async (req, res) => {
 
       existingUser = newUser;
     } else {
-      logger.info("User already exists:", existingUser);
+      // If user exists, update email if provided by LINE (but don't override if null)
+      if (userProfile.email) {
+        existingUser.email = userProfile.email; // อัปเดต email ถ้ามีจาก LINE
+        existingUser.profileCompleted = true; // ตั้งค่าเป็น true ถ้ามี email
+        await existingUser.save();
+      } else if (existingUser.email === null) {
+        existingUser.profileCompleted = false; // ยังคงเป็น false ถ้ายังไม่มี email
+        await existingUser.save();
+      }
+      logger.info("User already exists, updated if necessary:", existingUser);
     }
 
     // Respond with tokens and user data
