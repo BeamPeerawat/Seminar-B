@@ -1,6 +1,7 @@
 import axios from "axios";
 import Profile from "../models/Profile.js"; // นำเข้า Model Profile
 import User from "../models/User.js"; // นำเข้า User model
+import mongoose from "mongoose"; // เพิ่มการนำเข้า mongoose
 import logger from "../utils/logger.js"; // เพิ่มบรรทัดนี้
 
 // ดึงข้อมูลโปรไฟล์จาก LINE (ไม่เปลี่ยนแปลง)
@@ -71,7 +72,7 @@ export const saveProfile = async (req, res) => {
 
     logger.debug("Save profile request body:", req.body);
 
-    // แปลง userId เป็น ObjectId
+    // แปลง userId เป็น ObjectId (ตอนนี้ใช้ mongoose ได้)
     const userIdObjectId = new mongoose.Types.ObjectId(userId);
 
     // ตรวจสอบว่ามีโปรไฟล์ของ userId นี้ในฐานข้อมูล Profile หรือไม่
