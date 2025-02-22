@@ -165,11 +165,10 @@ export const exchangeCode = async (req, res) => {
       if (userProfile.email) {
         existingUser.email = userProfile.email; // อัปเดต email ถ้ามีจาก LINE
         existingUser.profileCompleted = true; // ตั้งค่าเป็น true ถ้ามี email
-        await existingUser.save();
-      } else if (existingUser.email === null) {
-        existingUser.profileCompleted = false; // ยังคงเป็น false ถ้ายังไม่มี email
-        await existingUser.save();
+      } else if (existingUser.email === null && !existingUser.address && !existingUser.phone) {
+        existingUser.profileCompleted = false; // ยังคงเป็น false ถ้ายังไม่มีข้อมูลอื่น
       }
+      await existingUser.save();
       logger.info("User already exists, updated if necessary:", existingUser);
     }
 
@@ -192,5 +191,27 @@ export const exchangeCode = async (req, res) => {
     res.status(500).json({
       error: error.message || "Failed to exchange code for token",
     });
+  }
+};
+
+// เพิ่มฟังก์ชันสำหรับอัปเดต profileCompleted (ตามที่แนะนำในข้อก่อนหน้า)
+export const updateProfileCompleted = async (req, res) => {
+  const { userId, profileCompleted } = req.body;
+
+  try {
+    const user = await User.findOneAndUpdate(
+      { userId },
+      { profileCompleted, updatedAt: Date.now() }, // อัปเดต timestamp ด้วย
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ message: "Profile status updated successfully", user });
+  } catch (error) {
+    logger.error("Error updating profile completed status:", error);
+    res.status(500).json({ error: "Failed to update profile status" });
   }
 };
