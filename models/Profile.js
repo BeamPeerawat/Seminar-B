@@ -1,14 +1,15 @@
 import mongoose from "mongoose";
 
 const profileSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // ต้องมีชื่อ
-  address: { type: String, required: true }, // ต้องมีที่อยู่
-  phone: { type: String, required: true }, // ต้องมีเบอร์โทร
-  email: { type: String, required: false }, // Optional, not unique (รองรับ null และซ้ำ)
-  userId: { type: String, required: true }, // ใช้ String แทน ObjectId
-  profileCompleted: { type: Boolean, default: false }, // เพิ่ม field เพื่อบ่งบอกว่าข้อมูลสมบูรณ์หรือไม่
-  createdAt: { type: Date, default: Date.now }, // เพิ่ม timestamp
-  updatedAt: { type: Date, default: Date.now }, // เพิ่ม timestamp
+  userId: { type: String, required: true, ref: "User" }, // ใช้ String จาก User model
+  name: { type: String, required: false }, // Optional, ใช้จาก LINE หรือกรอกใน /complete-profile
+  address: { type: String, required: false }, // Optional
+  phone: { type: String, required: false }, // Optional
+  email: { type: String, required: false }, // Optional, not unique
+  profileCompleted: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  orders: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }], // เก็บประวัติคำสั่งซื้อ
 });
 
 profileSchema.pre("save", function (next) {

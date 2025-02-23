@@ -14,6 +14,9 @@ import { getProfile } from "./controllers/profileController.js";
 import logger from "./utils/logger.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import authenticate from "./middleware/authenticate.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
+import productRoutes from "./routes/productRoutes.js";
 dotenv.config();
 
 // Initialize App
@@ -32,7 +35,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
 app.use("/api", profileRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
+app.use("/api/products", productRoutes); // เพิ่ม route สำหรับสินค้า
 
 // Route สำหรับหน้าแรก
 app.get("/", (req, res) => {

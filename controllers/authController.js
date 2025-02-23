@@ -177,6 +177,7 @@ export const exchangeCode = async (req, res) => {
         statusMessage: existingUser.statusMessage,
         role: existingUser.role,
         profileCompleted: existingUser.profileCompleted,
+        profile: await Profile.findOne({ userId: existingUser.userId }), // ส่งข้อมูลโปรไฟล์กลับไปด้วย
       },
     });
   } catch (error) {
