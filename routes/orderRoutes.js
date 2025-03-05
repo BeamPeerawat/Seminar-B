@@ -44,6 +44,13 @@ router.post("/", async (req, res) => {
       userId, // เชื่อมโยงกับผู้ใช้ที่ล็อกอิน
     });
 
+      // อัปเดตสต็อกสินค้า
+      for (const item of items) {
+      const product = await Product.findOne({ productId: item.productId });
+      product.stock -= item.quantity;
+      await product.save();
+      }
+
     // อัปเดตโปรไฟล์ของผู้ใช้ (เพิ่ม order ใน Profile)
     const profile = await Profile.findOne({ userId });
     if (profile) {
