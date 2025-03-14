@@ -43,32 +43,10 @@ app.get("/", (req, res) => {
   res.send("Hello, World! Your backend is working correctly.");
 });
 
-app.get("/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  const sendVisitorCount = async () => {
-    const visitor = await Visitor.findOne();
-    res.write(`data: ${visitor ? visitor.count : 0}\n\n`);
-  };
-
-  sendVisitorCount();
-  const interval = setInterval(sendVisitorCount, 5000); // อัปเดตทุก 5 วินาที
-
-  req.on("close", () => {
-    clearInterval(interval);
-    res.end();
-  });
-});
-
 // Connect to Database
 connectDB()
   .then(() => logger.info("Connected to MongoDB successfully"))
-  .catch((error) => {
-    logger.error("Failed to connect to MongoDB:", error);
-    process.exit(1); // ออก process ถ้าล้มเหลว
-  });
+  .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก
