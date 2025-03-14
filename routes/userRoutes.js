@@ -4,6 +4,17 @@ import Profile from "../models/Profile.js";
 
 const router = express.Router();
 
+// ดึงข้อมูลผู้ใช้ทั้งหมด (สำหรับ Admin)
+router.get("/", async (req, res) => {
+  try {
+    const users = await User.find(); // ดึงผู้ใช้ทั้งหมดจาก MongoDB
+    const totalUsers = await User.countDocuments(); // นับจำนวนผู้ใช้ทั้งหมด
+    res.status(200).json({ users, totalUsers }); // ส่งทั้งข้อมูลผู้ใช้และจำนวนทั้งหมด
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ล็อกอินด้วยไลน์ (ใช้ userId เป็น String)
 router.post("/login", async (req, res) => {
   const { userId, name, profileImage } = req.body; // ใช้ userId แทน lineId
