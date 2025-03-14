@@ -1,6 +1,8 @@
+// routes/userRoutes.js
 import express from "express";
 import User from "../models/User.js";
 import Profile from "../models/Profile.js";
+import Visitor from "../models/Visitor.js"; // เพิ่ม Visitor model
 
 const router = express.Router();
 
@@ -27,7 +29,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// POST - บันทึกโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
+// POST - บันทึกโปรไฟล์
 router.post("/profile", async (req, res) => {
   const { userId, fullName, address, phoneNumber, email, profileImage } = req.body;
 
@@ -68,7 +70,7 @@ router.post("/profile", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
+// ดึงข้อมูลโปรไฟล์
 router.get("/profile/:userId", async (req, res) => {
   try {
     const profile = await Profile.findOne({ userId: req.params.userId });
@@ -81,17 +83,24 @@ router.get("/profile/:userId", async (req, res) => {
   }
 });
 
-// ใหม่: ดึงข้อมูลผู้ใช้ทั้งหมด
+// ดึงข้อมูลผู้ใช้ทั้งหมด
 router.get("/", async (req, res) => {
   try {
-    const users = await User.find().select("-__v"); // ไม่ส่ง field __v กลับไป
-    res.status(200).json(users);
+    const users = await User.find().select("-__v");
+    // ดึงข้อมูลโปรไฟล์ของผู้ใช้แต่ละคน
+    const usersWithProfile = await Promise.all(
+      users.map(async (user) => {
+        const profile = await Profile.findOne({ userId: user.userId });
+        return { ...user._doc, profile };
+      })
+    );
+    res.status(200).json(usersWithProfile);
   } catch (error) {
     res.status(500).json({ message: "Error fetching users", error: error.message });
   }
 });
 
-// ใหม่: อัปเดต Role ของผู้ใช้
+// อัปเดต Role ของผู้ใช้
 router.patch("/:id", async (req, res) => {
   try {
     const { role } = req.body;
@@ -113,6 +122,58 @@ router.patch("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error updating user role", error: error.message });
   }
+});
+
+// อัปเดตข้อมูลผู้ใช้ (PUT)
+router.put("/:id", async (req, res) => {
+  try {
+    const { fullname, email } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { fullname, email },
+      { new: true, runValidators: true }
+    );
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating user", error: error.message });
+  }
+});
+
+// ลบผู้ใช้ (DELETE)
+router.delete("/:id", async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting user", error: error.message });
+  }
+});
+
+// เพิ่ม Route สำหรับ Server-Sent Events (SSE)
+router.get("/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const sendVisitorCount = async () => {
+    const visitor = await Visitor.findOne() || { count: 0 };
+    res.write(`data: ${visitor.count}\n\n`);
+  };
+
+  sendVisitorCount(); // ส่งข้อมูลเริ่มต้น
+
+  const interval = setInterval(sendVisitorCount, 1000); // อัปเดตทุก 1 วินาที
+
+  req.on("close", () => {
+    clearInterval(interval);
+    res.end();
+  });
 });
 
 export default router;
