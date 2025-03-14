@@ -19,9 +19,13 @@ router.post("/add", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const blogs = await Blog.find();
+    if (!blogs) {
+      return res.status(404).json({ message: "No blogs found" });
+    }
     res.status(200).json(blogs);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching blogs", error });
+    logger.error("Error fetching blogs:", error); // ใช้ logger
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 });
 

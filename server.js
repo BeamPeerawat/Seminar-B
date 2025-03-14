@@ -46,7 +46,10 @@ app.get("/", (req, res) => {
 // Connect to Database
 connectDB()
   .then(() => logger.info("Connected to MongoDB successfully"))
-  .catch((error) => logger.error("Failed to connect to MongoDB:", error));
+  .catch((error) => {
+    logger.error("Failed to connect to MongoDB:", error);
+    process.exit(1); // ออก process ถ้าล้มเหลว
+  });
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก

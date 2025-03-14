@@ -1,26 +1,27 @@
-// routes/userRoutes.js
 import express from "express";
 import User from "../models/User.js";
 import Profile from "../models/Profile.js";
-import Visitor from "../models/Visitor.js"; // เพิ่ม Visitor model
 
 const router = express.Router();
 
 // ล็อกอินด้วยไลน์ (ใช้ userId เป็น String)
 router.post("/login", async (req, res) => {
-  const { userId, name, profileImage } = req.body;
+  const { userId, name, profileImage } = req.body; // ใช้ userId แทน lineId
 
   try {
-    let user = await User.findOne({ userId });
+    let user = await User.findOne({ userId }); // ใช้ userId เป็น String
     if (!user) {
-      user = await User.create({ userId, displayName: name, pictureUrl: profileImage });
+      user = await User.create({ userId, name, profileImage });
     }
 
+    // ตรวจสอบสถานะโปรไฟล์จาก Profile model
     const profile = await Profile.findOne({ userId });
     const profileCompleted = profile ? profile.profileCompleted : false;
 
     if (!profileCompleted) {
-      return res.status(200).json({ profileCompleted: false, userId: user.userId });
+      return res
+        .status(200)
+        .json({ profileCompleted: false, userId: user.userId }); // ใช้ userId เป็น String
     }
 
     res.status(200).json({ profileCompleted: true, userId: user.userId });
@@ -29,37 +30,43 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// POST - บันทึกโปรไฟล์
+// POST - บันทึกโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 router.post("/profile", async (req, res) => {
-  const { userId, fullName, address, phoneNumber, email, profileImage } = req.body;
+  const { userId, fullName, address, phoneNumber, email, profileImage } =
+    req.body;
 
   try {
-    let profile = await Profile.findOne({ userId });
+    // ตรวจสอบว่าผู้ใช้มีโปรไฟล์อยู่ในระบบแล้วใน Profile model
+    let profile = await Profile.findOne({ userId }); // ใช้ userId เป็น String
 
     if (!profile) {
+      // ถ้ายังไม่มีโปรไฟล์ให้สร้างใหม่ใน Profile model
       profile = new Profile({
-        userId,
+        userId, // ใช้ userId เป็น String
         name: fullName,
         address,
         phone: phoneNumber,
-        email: email || null,
+        email: email || null, // อนุญาตให้ email เป็น null
         profileImage,
-        profileCompleted: true,
+        profileCompleted: true, // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
       });
     } else {
+      // ถ้ามีโปรไฟล์แล้วให้ทำการอัปเดต
       profile.name = fullName;
       profile.address = address;
       profile.phone = phoneNumber;
-      profile.email = email || null;
+      profile.email = email || null; // อนุญาตให้ email เป็น null
       profile.profileImage = profileImage;
-      profile.profileCompleted = true;
+      profile.profileCompleted = true; // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
     }
 
+    // บันทึกโปรไฟล์ในฐานข้อมูล Profile
     await profile.save();
 
-    const user = await User.findOne({ userId });
+    // อัปเดตสถานะโปรไฟล์ใน User model
+    const user = await User.findOne({ userId }); // ใช้ userId เป็น String
     if (user) {
-      user.profileCompleted = true;
+      user.profileCompleted = true; // อัปเดต profileCompleted ใน User
       user.updatedAt = Date.now();
       await user.save();
     }
@@ -70,10 +77,10 @@ router.post("/profile", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลโปรไฟล์
+// ดึงข้อมูลโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 router.get("/profile/:userId", async (req, res) => {
   try {
-    const profile = await Profile.findOne({ userId: req.params.userId });
+    const profile = await Profile.findOne({ userId: req.params.userId }); // ใช้ userId เป็น String
     if (!profile) {
       return res.status(404).json({ error: "Profile not found." });
     }
@@ -81,99 +88,6 @@ router.get("/profile/:userId", async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
-
-// ดึงข้อมูลผู้ใช้ทั้งหมด
-router.get("/", async (req, res) => {
-  try {
-    const users = await User.find().select("-__v");
-    // ดึงข้อมูลโปรไฟล์ของผู้ใช้แต่ละคน
-    const usersWithProfile = await Promise.all(
-      users.map(async (user) => {
-        const profile = await Profile.findOne({ userId: user.userId });
-        return { ...user._doc, profile };
-      })
-    );
-    res.status(200).json(usersWithProfile);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching users", error: error.message });
-  }
-});
-
-// อัปเดต Role ของผู้ใช้
-router.patch("/:id", async (req, res) => {
-  try {
-    const { role } = req.body;
-    if (!["user", "admin"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: "Error updating user role", error: error.message });
-  }
-});
-
-// อัปเดตข้อมูลผู้ใช้ (PUT)
-router.put("/:id", async (req, res) => {
-  try {
-    const { fullname, email } = req.body;
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      { fullname, email },
-      { new: true, runValidators: true }
-    );
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: "Error updating user", error: error.message });
-  }
-});
-
-// ลบผู้ใช้ (DELETE)
-router.delete("/:id", async (req, res) => {
-  try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json({ message: "User deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Error deleting user", error: error.message });
-  }
-});
-
-// เพิ่ม Route สำหรับ Server-Sent Events (SSE)
-router.get("/events", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  const sendVisitorCount = async () => {
-    const visitor = await Visitor.findOne() || { count: 0 };
-    res.write(`data: ${visitor.count}\n\n`);
-  };
-
-  sendVisitorCount(); // ส่งข้อมูลเริ่มต้น
-
-  const interval = setInterval(sendVisitorCount, 1000); // อัปเดตทุก 1 วินาที
-
-  req.on("close", () => {
-    clearInterval(interval);
-    res.end();
-  });
 });
 
 export default router;
