@@ -17,6 +17,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import authenticate from "./middleware/authenticate.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
 import productRoutes from "./routes/productRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 dotenv.config();
 
 // Initialize App
@@ -37,7 +38,7 @@ app.post("/api/auth/exchange-code", exchangeCode);
 app.use("/api", profileRoutes);
 app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
 app.use("/api/products", productRoutes); // เพิ่ม route สำหรับสินค้า
-
+app.use("/api/users", userRoutes);
 // Route สำหรับหน้าแรก
 app.get("/", (req, res) => {
   res.send("Hello, World! Your backend is working correctly.");
