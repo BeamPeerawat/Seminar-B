@@ -41,6 +41,7 @@ app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
 app.use("/api/products", productRoutes); // เพิ่ม route สำหรับสินค้า
 app.use("/api/users", userRoutes);
 app.use("/api/services", servicesRoutes); // เปลี่ยนจาก /api เป็น /api/services
+
 // Route สำหรับหน้าแรก
 app.get("/", (req, res) => {
   res.send("Hello, World! Your backend is working correctly.");
