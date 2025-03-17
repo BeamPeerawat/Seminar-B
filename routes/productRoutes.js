@@ -12,6 +12,11 @@ router.get("/products", async (req, res) => {
       return res.status(400).json({ error: "serviceId is required" });
     }
 
+    if (serviceId === "all") {
+      const products = await Product.find();
+      return res.json(products);
+    }
+
     const productIds = getProductIdsByService(serviceId);
     if (!productIds.length) {
       return res.status(404).json({ message: "No products found for this service" });

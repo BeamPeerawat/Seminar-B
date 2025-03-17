@@ -3,15 +3,15 @@ import {
   checkProfile,
   saveProfile,
   getProfileFromDB,
-} from "../controllers/profileController.js"; // เพิ่มการนำเข้า getProfileFromDB
-import { updateProfileCompleted } from "../controllers/authController.js"; // นำเข้า updateProfileCompleted จาก authController
+} from "../controllers/profileController.js";
+import { updateProfileCompleted } from "../controllers/authController.js";
+import { authenticateToken } from "../middleware/authenticate.js"; // เพิ่มการนำเข้า
 
 const router = express.Router();
 
-// เส้นทางหลักใน profileRoutes.js
-router.post("/check-profile", checkProfile); // ตรวจสอบโปรไฟล์
-router.post("/save-profile", saveProfile); // บันทึกโปรไฟล์
-router.post("/get-profile-from-db", getProfileFromDB); // ดึงข้อมูลโปรไฟล์จากฐานข้อมูล
-router.post("/update-profile-completed", updateProfileCompleted); // อัปเดตสถานะ profileCompleted
+router.post("/check-profile", authenticateToken, checkProfile); // ใช้ middleware
+router.post("/save-profile", authenticateToken, saveProfile); // ใช้ middleware
+router.post("/get-profile-from-db", authenticateToken, getProfileFromDB); // ใช้ middleware
+router.post("/update-profile-completed", authenticateToken, updateProfileCompleted); // ใช้ middleware
 
 export default router;
