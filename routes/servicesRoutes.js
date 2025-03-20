@@ -15,7 +15,7 @@
 
 import express from "express";
 import Product from "../models/Product.js";
-import { getServiceTitle } from "../utils/serviceUtils.js";
+import { getServiceTitle, getProductIdsByService } from "../utils/serviceUtils.js"; // เพิ่ม getProductIdsByService
 
 const router = express.Router();
 
