@@ -18,11 +18,13 @@ router.get("/products", async (req, res) => {
     }
 
     const productIds = getProductIdsByService(serviceId);
+    console.log(`Service ID: ${serviceId}, Product IDs: ${productIds}`); // Debug
     if (!productIds.length) {
       return res.status(404).json({ message: "No products found for this service" });
     }
 
     const products = await Product.find({ productId: { $in: productIds } });
+    console.log(`Found products for ${serviceId}:`, products); // Debug
     if (!products.length) {
       return res.status(404).json({ message: "No products found in database" });
     }
