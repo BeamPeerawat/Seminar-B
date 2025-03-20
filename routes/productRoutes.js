@@ -1,6 +1,6 @@
 import express from "express";
 import Product from "../models/Product.js";
-import { getProductIdsByService, getServiceTitle } from "../utils/serviceUtils.js";
+import Service from "../models/Service.js";
 
 const router = express.Router();
 
@@ -17,23 +17,22 @@ router.get("/", async (req, res) => {
       return res.json(products);
     }
 
-    const productIds = getProductIdsByService(serviceId);
-    console.log(`Service ID: ${serviceId}, Product IDs: ${productIds}`); // Debug
-    if (!productIds.length) {
-      return res.status(404).json({ message: "No products found for this service" });
+    const service = await Service.findOne({ serviceId });
+    if (!service) {
+      return res.status(404).json({ message: "Service not found" });
     }
 
-    const products = await Product.find({ productId: { $in: productIds } });
+    const products = await Product.find({ serviceId }); // ใช้ serviceId ค้นหาโดยตรง
     console.log(`Found products for ${serviceId}:`, products); // Debug
     if (!products.length) {
-      return res.status(404).json({ message: "No products found in database" });
+      return res.status(404).json({ message: "No products found for this service" });
     }
 
     res.json(
       products.map((p) => ({
         ...p.toObject(),
         serviceId,
-        serviceTitle: getServiceTitle(serviceId),
+        serviceTitle: service.title,
       }))
     );
   } catch (error) {
@@ -50,14 +49,11 @@ router.get("/:productId", async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    // เพิ่ม serviceTitle ตาม serviceId ที่เกี่ยวข้อง
-    const serviceId = Object.keys(getProductIdsByService).find((key) =>
-      getProductIdsByService(key).includes(Number(productId))
-    );
+    const service = await Service.findOne({ serviceId: product.serviceId });
     const productWithService = {
       ...product.toObject(),
-      serviceId,
-      serviceTitle: getServiceTitle(serviceId),
+      serviceId: product.serviceId,
+      serviceTitle: service?.title || "ไม่ระบุ",
     };
     res.json(productWithService);
   } catch (error) {
@@ -66,40 +62,99 @@ router.get("/:productId", async (req, res) => {
   }
 });
 
-// ดึงสินค้าตาม serviceId
-router.get("/products", async (req, res) => {
+// เพิ่มสินค้าใหม่
+router.post("/", async (req, res) => {
   try {
-    const { serviceId } = req.query;
-    if (!serviceId) {
-      return res.status(400).json({ error: "serviceId is required" });
+    const { productId, name, price, stock, details, image, serviceId } = req.body;
+    if (!productId || !name || !price || !stock || !details || !serviceId) {
+      return res.status(400).json({ error: "All fields are required" });
     }
 
-    if (serviceId === "all") {
-      const products = await Product.find();
-      return res.json(products);
+    const service = await Service.findOne({ serviceId });
+    if (!service) {
+      return res.status(404).json({ message: "Service not found" });
     }
 
-    const productIds = getProductIdsByService(serviceId);
-    console.log(`Service ID: ${serviceId}, Product IDs: ${productIds}`); // Debug
-    if (!productIds.length) {
-      return res.status(404).json({ message: "No products found for this service" });
+    const existingProduct = await Product.findOne({ productId });
+    if (existingProduct) {
+      return res.status(400).json({ error: "Product ID already exists" });
     }
 
-    const products = await Product.find({ productId: { $in: productIds } });
-    console.log(`Found products for ${serviceId}:`, products); // Debug
-    if (!products.length) {
-      return res.status(404).json({ message: "No products found in database" });
-    }
+    const product = new Product({ productId, name, price, stock, details, image, serviceId });
+    await product.save();
 
-    res.json(
-      products.map((p) => ({
-        ...p.toObject(),
-        serviceTitle: getServiceTitle(serviceId),
-      }))
-    );
+    // อัปเดต productIds ใน Service
+    service.productIds.push(productId);
+    await service.save();
+
+    res.status(201).json({ message: "Product added successfully", product });
   } catch (error) {
-    console.error("Error fetching products:", error.message);
-    res.status(500).json({ error: "Failed to fetch products", details: error.message });
+    console.error("Error adding product:", error.message);
+    res.status(500).json({ error: "Failed to add product", details: error.message });
+  }
+});
+
+// อัปเดตสินค้า
+router.put("/:productId", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { name, price, stock, details, image, serviceId } = req.body;
+
+    const product = await Product.findOne({ productId: Number(productId) });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const oldServiceId = product.serviceId;
+    product.name = name || product.name;
+    product.price = price !== undefined ? price : product.price;
+    product.stock = stock !== undefined ? stock : product.stock;
+    product.details = details || product.details;
+    product.image = image || product.image;
+    product.serviceId = serviceId || product.serviceId;
+    await product.save();
+
+    // อัปเดต productIds ใน Service ถ้า serviceId เปลี่ยน
+    if (serviceId && serviceId !== oldServiceId) {
+      const oldService = await Service.findOne({ serviceId: oldServiceId });
+      if (oldService) {
+        oldService.productIds = oldService.productIds.filter((id) => id !== Number(productId));
+        await oldService.save();
+      }
+      const newService = await Service.findOne({ serviceId });
+      if (newService) {
+        newService.productIds.push(Number(productId));
+        await newService.save();
+      }
+    }
+
+    res.json({ message: "Product updated successfully", product });
+  } catch (error) {
+    console.error("Error updating product:", error.message);
+    res.status(500).json({ error: "Failed to update product", details: error.message });
+  }
+});
+
+// ลบสินค้า
+router.delete("/:productId", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const product = await Product.findOne({ productId: Number(productId) });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const service = await Service.findOne({ serviceId: product.serviceId });
+    if (service) {
+      service.productIds = service.productIds.filter((id) => id !== Number(productId));
+      await service.save();
+    }
+
+    await Product.deleteOne({ productId: Number(productId) });
+    res.json({ message: "Product deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting product:", error.message);
+    res.status(500).json({ error: "Failed to delete product", details: error.message });
   }
 });
 
@@ -120,19 +175,15 @@ router.get("/stock", async (req, res) => {
 
 // อัปเดตสต็อก
 router.post("/stock", async (req, res) => {
-  const { productId, change, userId } = req.body;
   try {
-    if (!productId || typeof change !== "number" || !userId) {
-      return res.status(400).json({ error: "productId, change, and userId are required" });
-    }
-
+    const { productId, change } = req.body;
     const product = await Product.findOne({ productId });
-    if (!product) return res.status(404).json({ error: "Product not found" });
-
-    product.stock += change;
-    if (product.stock < 0) product.stock = 0;
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    product.stock = Math.max(0, product.stock + change); // ไม่ให้สต็อกติดลบ
     await product.save();
-    res.json({ [productId]: product.stock });
+    res.json({ message: "Stock updated successfully", product });
   } catch (error) {
     console.error("Error updating stock:", error.message);
     res.status(500).json({ error: "Failed to update stock", details: error.message });
@@ -147,60 +198,52 @@ router.post("/seed", async (req, res) => {
       return res.status(400).json({ error: "Invalid services data" });
     }
 
+    // ลบข้อมูลเก่า
+    await Product.deleteMany();
+    await Service.deleteMany();
+
+    // เตรียมข้อมูลสำหรับ Product และ Service
     const products = [];
+    const serviceData = [];
+
     for (const [serviceId, service] of Object.entries(services)) {
       if (!service.products || !Array.isArray(service.products)) {
         return res.status(400).json({ error: `Invalid products for service ${serviceId}` });
       }
+
+      const productIds = [];
       service.products.forEach((product) => {
-        if (!product.id || !product.name || !product.price) {
+        if (!product.id || !product.name || !product.price || !product.serviceId) {
           throw new Error(`Missing required fields in product: ${JSON.stringify(product)}`);
         }
         products.push({
           productId: product.id,
           name: product.name,
           price: product.price,
-          stock: 10,
+          stock: product.stock || 10,
           details: product.details || "",
+          image: product.image || "",
+          serviceId: product.serviceId,
         });
+        productIds.push(product.id);
+      });
+
+      serviceData.push({
+        serviceId,
+        title: service.title,
+        productIds,
       });
     }
 
-    await Product.deleteMany();
+    // เพิ่มข้อมูล Service
+    await Service.insertMany(serviceData);
+    // เพิ่มข้อมูล Product
     await Product.insertMany(products);
-    res.status(201).json({ message: "Products seeded successfully", count: products.length });
-  } catch (error) {
-    console.error("Error seeding products:", error.message);
-    res.status(500).json({ error: "Failed to seed products", details: error.message });
-  }
-});
 
-// เพิ่มสินค้า
-router.post("/products", async (req, res) => {
-  try {
-    const { productId, name, price, stock, details } = req.body;
-    if (!productId || !name || !price) {
-      return res.status(400).json({ error: "productId, name, and price are required" });
-    }
-
-    const product = new Product({ productId, name, price, stock: stock || 10, details });
-    await product.save();
-    res.status(201).json(product);
+    res.status(201).json({ message: "Data seeded successfully", productCount: products.length, serviceCount: serviceData.length });
   } catch (error) {
-    console.error("Error adding product:", error.message);
-    res.status(500).json({ error: "Failed to add product", details: error.message });
-  }
-});
-
-// ลบสินค้า
-router.delete("/products/:productId", async (req, res) => {
-  try {
-    const product = await Product.findOneAndDelete({ productId: req.params.productId });
-    if (!product) return res.status(404).json({ error: "Product not found" });
-    res.json({ message: "Product deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting product:", error.message);
-    res.status(500).json({ error: "Failed to delete product", details: error.message });
+    console.error("Error seeding data:", error.message);
+    res.status(500).json({ error: "Failed to seed data", details: error.message });
   }
 });
 
