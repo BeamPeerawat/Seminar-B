@@ -5,6 +5,43 @@ import { getProductIdsByService, getServiceTitle } from "../utils/serviceUtils.j
 const router = express.Router();
 
 // ดึงสินค้าตาม serviceId
+router.get("/", async (req, res) => {
+  try {
+    const { serviceId } = req.query;
+    if (!serviceId) {
+      return res.status(400).json({ error: "serviceId is required" });
+    }
+
+    if (serviceId === "all") {
+      const products = await Product.find();
+      return res.json(products);
+    }
+
+    const productIds = getProductIdsByService(serviceId);
+    console.log(`Service ID: ${serviceId}, Product IDs: ${productIds}`); // Debug
+    if (!productIds.length) {
+      return res.status(404).json({ message: "No products found for this service" });
+    }
+
+    const products = await Product.find({ productId: { $in: productIds } });
+    console.log(`Found products for ${serviceId}:`, products); // Debug
+    if (!products.length) {
+      return res.status(404).json({ message: "No products found in database" });
+    }
+
+    res.json(
+      products.map((p) => ({
+        ...p.toObject(),
+        serviceTitle: getServiceTitle(serviceId),
+      }))
+    );
+  } catch (error) {
+    console.error("Error fetching products:", error.message);
+    res.status(500).json({ error: "Failed to fetch products", details: error.message });
+  }
+});
+
+// ดึงสินค้าตาม serviceId
 router.get("/products", async (req, res) => {
   try {
     const { serviceId } = req.query;
