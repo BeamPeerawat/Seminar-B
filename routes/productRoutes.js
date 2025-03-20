@@ -32,12 +32,37 @@ router.get("/", async (req, res) => {
     res.json(
       products.map((p) => ({
         ...p.toObject(),
+        serviceId,
         serviceTitle: getServiceTitle(serviceId),
       }))
     );
   } catch (error) {
     console.error("Error fetching products:", error.message);
     res.status(500).json({ error: "Failed to fetch products", details: error.message });
+  }
+});
+
+// ดึงข้อมูลสินค้าตาม productId
+router.get("/:productId", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const product = await Product.findOne({ productId: Number(productId) });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    // เพิ่ม serviceTitle ตาม serviceId ที่เกี่ยวข้อง
+    const serviceId = Object.keys(getProductIdsByService).find((key) =>
+      getProductIdsByService(key).includes(Number(productId))
+    );
+    const productWithService = {
+      ...product.toObject(),
+      serviceId,
+      serviceTitle: getServiceTitle(serviceId),
+    };
+    res.json(productWithService);
+  } catch (error) {
+    console.error("Error fetching product:", error.message);
+    res.status(500).json({ error: "Failed to fetch product", details: error.message });
   }
 });
 
