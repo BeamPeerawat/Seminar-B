@@ -162,8 +162,11 @@ router.delete("/:productId", async (req, res) => {
 router.get("/stock", async (req, res) => {
   try {
     const stock = await Product.find().select("productId stock");
+    if (!stock.length) {
+      return res.status(404).json({ message: "No products found" });
+    }
     const stockMap = stock.reduce((acc, product) => {
-      acc[product.productId] = product.stock;
+      acc[product.productId] = typeof product.stock === "number" ? product.stock : 0;
       return acc;
     }, {});
     res.json(stockMap);
