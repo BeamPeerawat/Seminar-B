@@ -2,7 +2,7 @@ import express from "express";
 import Order from "../models/Order.js";
 import Profile from "../models/Profile.js";
 import User from "../models/User.js";
-import Product from "../models/Product.js"; // นำเข้า Model Product
+import Product from "../models/Product.js";
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -10,6 +10,7 @@ const router = express.Router();
 
 router.use(authenticate, authMiddleware);
 
+// สร้างคำสั่งซื้อ (มีอยู่แล้ว)
 router.post("/", async (req, res) => {
   try {
     const { items, total, customer, paymentMethod } = req.body;
@@ -33,7 +34,6 @@ router.post("/", async (req, res) => {
       if (product.stock < item.quantity) {
         return res.status(400).json({ success: false, error: `Insufficient stock for ${item.name}` });
       }
-      // ลดสต็อกทันที (ถ้าต้องการเก็บสต็อกไว้ในฐานข้อมูล)
       product.stock -= item.quantity;
       await product.save();
     }
@@ -60,6 +60,32 @@ router.post("/", async (req, res) => {
     res.status(201).json({
       success: true,
       orderId: order._id,
+      order: orderData,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// ดึงข้อมูลคำสั่งซื้อตาม orderId
+router.get("/:orderId", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.userId;
+
+    const order = await Order.findOne({ _id: orderId, userId });
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    const orderData = order.toObject();
+    orderData.createdAt = new Date(orderData.createdAt).toLocaleString();
+
+    res.status(200).json({
+      success: true,
       order: orderData,
     });
   } catch (error) {

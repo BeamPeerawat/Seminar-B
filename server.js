@@ -19,6 +19,7 @@ import { authMiddleware } from "./middleware/authMiddleware.js";
 import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import servicesRoutes from "./routes/servicesRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
 dotenv.config();
 
 // Initialize App
@@ -41,6 +42,7 @@ app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
 app.use("/api/products", productRoutes); // เพิ่ม route สำหรับสินค้า
 app.use("/api/users", userRoutes);
 app.use("/api/services", servicesRoutes); // เปลี่ยนจาก /api เป็น /api/services
+app.use("/api/cart", cartRoutes);
 
 // Route สำหรับหน้าแรก
 app.get("/", (req, res) => {
