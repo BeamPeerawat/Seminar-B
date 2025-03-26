@@ -151,52 +151,22 @@ export const updateProfileCompleted = async (req, res) => {
 };
 
 // ดึงข้อมูลโปรไฟล์จากฐานข้อมูล (ใช้ Profile model กับ userId เป็น String)
-// export const getProfileFromDB = async (req, res) => {
-//   const { userId } = req.body; // รับ userId จาก body
-
-//   if (!userId) {
-//     return res.status(400).json({ message: "Missing userId" });
-//   }
-
-//   try {
-//     // ค้นหาข้อมูลโปรไฟล์จาก Profile model ด้วย userId
-//     const profile = await Profile.findOne({ userId }); // ใช้ userId เป็น String
-
-//     if (!profile) {
-//       return res.status(404).json({ message: "Profile not found" });
-//     }
-
-//     // ส่งข้อมูลโปรไฟล์กลับไป
-//     res.json({
-//       name: profile.name,
-//       address: profile.address,
-//       phone: profile.phone,
-//       email: profile.email,
-//       profileCompleted: profile.profileCompleted,
-//     });
-//   } catch (error) {
-//     logger.error("Error fetching profile from database:", error.message);
-//     res.status(500).json({
-//       message: "Failed to fetch profile from database",
-//       error: error.message,
-//     });
-//   }
-// };
-
 export const getProfileFromDB = async (req, res) => {
-  const userId = req.user?.userId; // ดึง userId จาก req.user ที่ได้จาก middleware
+  const { userId } = req.body; // รับ userId จาก body
 
   if (!userId) {
     return res.status(400).json({ message: "Missing userId" });
   }
 
   try {
-    const profile = await Profile.findOne({ userId });
+    // ค้นหาข้อมูลโปรไฟล์จาก Profile model ด้วย userId
+    const profile = await Profile.findOne({ userId }); // ใช้ userId เป็น String
 
     if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
+    // ส่งข้อมูลโปรไฟล์กลับไป
     res.json({
       name: profile.name,
       address: profile.address,
