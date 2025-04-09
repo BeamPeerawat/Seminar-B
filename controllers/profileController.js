@@ -150,13 +150,12 @@ export const updateProfileCompleted = async (req, res) => {
   }
 };
 
-// ดึงข้อมูลโปรไฟล์จากฐานข้อมูล
+// ดึงข้อมูลโปรไฟล์จากฐานข้อมูล (ใช้ Profile model กับ userId เป็น String)
 export const getProfileFromDB = async (req, res) => {
-  // ใช้ userId จาก req.user ที่ได้จาก middleware authenticate
-  const userId = req.user?.userId;
+  const { userId } = req.body; // รับ userId จาก body
 
   if (!userId) {
-    return res.status(401).json({ message: "Unauthorized: No user logged in" });
+    return res.status(400).json({ message: "Missing userId" });
   }
 
   try {
