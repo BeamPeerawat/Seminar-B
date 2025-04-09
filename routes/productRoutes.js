@@ -45,22 +45,20 @@ router.get("/", async (req, res) => {
 router.get("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
-    const product = await Product.findOne({ productId });
-
+    const product = await Product.findOne({ productId: Number(productId) });
     if (!product) {
-      return res.status(404).json({ success: false, error: "Product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
-
-    res.status(200).json({
-      success: true,
-      productId: product.productId,
-      name: product.name,
-      price: product.price,
-      stock: product.stock,
-      image: product.image,
-    });
+    const service = await Service.findOne({ serviceId: product.serviceId });
+    const productWithService = {
+      ...product.toObject(),
+      serviceId: product.serviceId,
+      serviceTitle: service?.title || "ไม่ระบุ",
+    };
+    res.json(productWithService);
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Error fetching product:", error.message);
+    res.status(500).json({ error: "Failed to fetch product", details: error.message });
   }
 });
 
