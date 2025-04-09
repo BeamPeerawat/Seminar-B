@@ -16,7 +16,7 @@ router.post("/", async (req, res) => {
     const { items, total, customer, paymentMethod } = req.body;
     const userId = req.user.userId;
 
-    console.log("Received order data:", { items, total, customer, paymentMethod, userId }); // Debug
+    console.log("Received order data:", { items, total, customer, paymentMethod, userId });
 
     if (!userId) {
       return res.status(401).json({ success: false, error: "Unauthorized: No user logged in" });
