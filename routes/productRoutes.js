@@ -4,7 +4,6 @@ import Service from "../models/Service.js";
 
 const router = express.Router();
 
-// ดึงสินค้าตาม serviceId
 router.get("/", async (req, res) => {
   try {
     const { serviceId } = req.query;
@@ -22,8 +21,7 @@ router.get("/", async (req, res) => {
       return res.status(404).json({ message: "Service not found" });
     }
 
-    const products = await Product.find({ serviceId }); // ใช้ serviceId ค้นหาโดยตรง
-    console.log(`Found products for ${serviceId}:`, products); // Debug
+    const products = await Product.find({ serviceId });
     if (!products.length) {
       return res.status(404).json({ message: "No products found for this service" });
     }
@@ -41,7 +39,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลสินค้าตาม productId
 router.get("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
@@ -62,7 +59,6 @@ router.get("/:productId", async (req, res) => {
   }
 });
 
-// เพิ่มสินค้าใหม่
 router.post("/", async (req, res) => {
   try {
     const { productId, name, price, stock, details, image, serviceId } = req.body;
@@ -83,7 +79,6 @@ router.post("/", async (req, res) => {
     const product = new Product({ productId, name, price, stock, details, image, serviceId });
     await product.save();
 
-    // อัปเดต productIds ใน Service
     service.productIds.push(productId);
     await service.save();
 
@@ -94,7 +89,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// อัปเดตสินค้า
 router.put("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
@@ -114,7 +108,6 @@ router.put("/:productId", async (req, res) => {
     product.serviceId = serviceId || product.serviceId;
     await product.save();
 
-    // อัปเดต productIds ใน Service ถ้า serviceId เปลี่ยน
     if (serviceId && serviceId !== oldServiceId) {
       const oldService = await Service.findOne({ serviceId: oldServiceId });
       if (oldService) {
@@ -135,7 +128,6 @@ router.put("/:productId", async (req, res) => {
   }
 });
 
-// ลบสินค้า
 router.delete("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
@@ -158,7 +150,6 @@ router.delete("/:productId", async (req, res) => {
   }
 });
 
-// ดึงสต็อก
 router.get("/stock", async (req, res) => {
   try {
     const stock = await Product.find().select("productId stock");
@@ -176,7 +167,6 @@ router.get("/stock", async (req, res) => {
   }
 });
 
-// อัปเดตสต็อก
 router.post("/stock", async (req, res) => {
   try {
     const { productId, change } = req.body;
@@ -184,7 +174,7 @@ router.post("/stock", async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    product.stock = Math.max(0, product.stock + change); // ไม่ให้สต็อกติดลบ
+    product.stock = Math.max(0, product.stock + change);
     await product.save();
     res.json({ message: "Stock updated successfully", product });
   } catch (error) {
@@ -193,7 +183,53 @@ router.post("/stock", async (req, res) => {
   }
 });
 
-// Seed ข้อมูล
+router.post("/check-stock", async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: "Invalid items data" });
+    }
+
+    const stockResults = await Promise.all(
+      items.map(async (item) => {
+        const product = await Product.findOne({ productId: item.productId });
+        if (!product) {
+          return {
+            productId: item.productId,
+            name: "Unknown",
+            availableStock: 0,
+            requestedQuantity: item.quantity || 1,
+            sufficient: false
+          };
+        }
+        return {
+          productId: item.productId,
+          name: product.name,
+          availableStock: product.stock,
+          requestedQuantity: item.quantity || 1,
+          sufficient: product.stock >= (item.quantity || 1)
+        };
+      })
+    );
+
+    const insufficientItems = stockResults.filter(item => !item.sufficient);
+
+    if (insufficientItems.length > 0) {
+      return res.status(400).json({
+        error: "Insufficient stock",
+        insufficientItems,
+        allItems: stockResults
+      });
+    }
+
+    res.json({ success: true, items: stockResults });
+  } catch (error) {
+    console.error("Error checking stock:", error.message);
+    res.status(500).json({ error: "Failed to check stock", details: error.message });
+  }
+});
+
 router.post("/seed", async (req, res) => {
   try {
     const { services } = req.body;
@@ -201,11 +237,9 @@ router.post("/seed", async (req, res) => {
       return res.status(400).json({ error: "Invalid services data" });
     }
 
-    // ลบข้อมูลเก่า
     await Product.deleteMany();
     await Service.deleteMany();
 
-    // เตรียมข้อมูลสำหรับ Product และ Service
     const products = [];
     const serviceData = [];
 
@@ -238,12 +272,14 @@ router.post("/seed", async (req, res) => {
       });
     }
 
-    // เพิ่มข้อมูล Service
     await Service.insertMany(serviceData);
-    // เพิ่มข้อมูล Product
     await Product.insertMany(products);
 
-    res.status(201).json({ message: "Data seeded successfully", productCount: products.length, serviceCount: serviceData.length });
+    res.status(201).json({ 
+      message: "Data seeded successfully", 
+      productCount: products.length, 
+      serviceCount: serviceData.length 
+    });
   } catch (error) {
     console.error("Error seeding data:", error.message);
     res.status(500).json({ error: "Failed to seed data", details: error.message });
