@@ -99,4 +99,41 @@ router.get("/:orderId", async (req, res) => {
   }
 });
 
+// ดึงประวัติคำสั่งซื้อทั้งหมดของผู้ใช้
+router.get("/", async (req, res) => {
+  try {
+    const userId = req.user.userId; // ได้จาก middleware authenticate
+
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 }); // เรียงจากใหม่ไปเก่า
+    if (!orders || orders.length === 0) {
+      return res.status(200).json({
+        success: true,
+        orders: [],
+        message: "No orders found for this user",
+      });
+    }
+
+    const ordersData = orders.map((order) => {
+      const orderData = order.toObject();
+      orderData.createdAt = new Date(orderData.createdAt).toLocaleString("th-TH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      return orderData;
+    });
+
+    res.status(200).json({
+      success: true,
+      orders: ordersData,
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch orders",
+      details: error.message,
+    });
+  }
+});
+
 export default router;
