@@ -3,6 +3,7 @@ import Order from "../models/Order.js";
 import Profile from "../models/Profile.js";
 import User from "../models/User.js";
 import Product from "../models/Product.js";
+import OrderCounter from "../models/OrderCounter.js"; // เพิ่ม OrderCounter
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -10,7 +11,17 @@ const router = express.Router();
 
 router.use(authenticate, authMiddleware);
 
-// สร้างคำสั่งซื้อ (มีอยู่แล้ว)
+// ฟังก์ชันเพื่อดึงและเพิ่มเลขลำดับ
+const getNextOrderNumber = async () => {
+  const counter = await OrderCounter.findByIdAndUpdate(
+    "order_counter",
+    { $inc: { sequence_value: 1 } },
+    { new: true, upsert: true } // ถ้าไม่มีจะสร้างใหม่เริ่มที่ 10000
+  );
+  return counter.sequence_value;
+};
+
+// สร้างคำสั่งซื้อ
 router.post("/", async (req, res) => {
   try {
     const { items, total, customer, paymentMethod } = req.body;
@@ -27,6 +38,7 @@ router.post("/", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
+    // ตรวจสอบและอัปเดตสต็อกสินค้า
     for (const item of items) {
       const product = await Product.findOne({ productId: item.productId });
       if (!product) {
@@ -39,7 +51,11 @@ router.post("/", async (req, res) => {
       await product.save();
     }
 
+    // ดึงเลขลำดับใหม่
+    const orderNumber = await getNextOrderNumber();
+
     const order = await Order.create({
+      orderNumber, // เพิ่ม orderNumber
       items,
       total,
       customer,
@@ -50,7 +66,7 @@ router.post("/", async (req, res) => {
 
     const profile = await Profile.findOne({ userId });
     if (profile) {
-      profile.orders.push(order._id);
+      profile.orders.push(order._id); // ยังเก็บ _id ใน profile เพื่อการอ้างอิง
       profile.updatedAt = Date.now();
       await profile.save();
     }
@@ -60,10 +76,10 @@ router.post("/", async (req, res) => {
 
     const responseData = {
       success: true,
-      orderId: order._id,
+      orderNumber, // ส่ง orderNumber กลับไปแทน orderId
       order: orderData,
     };
-    console.log("Sending response:", responseData); // Debug response
+    console.log("Sending response:", responseData);
 
     res.status(201).json(responseData);
   } catch (error) {
@@ -76,12 +92,12 @@ router.post("/", async (req, res) => {
 });
 
 // ดึงข้อมูลคำสั่งซื้อตาม orderId
-router.get("/:orderId", async (req, res) => {
+router.get("/:orderNumber", async (req, res) => {
   try {
-    const { orderId } = req.params;
+    const { orderNumber } = req.params;
     const userId = req.user.userId;
 
-    const order = await Order.findOne({ _id: orderId, userId });
+    const order = await Order.findOne({ orderNumber: Number(orderNumber), userId });
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
@@ -104,9 +120,9 @@ router.get("/:orderId", async (req, res) => {
 // ดึงประวัติคำสั่งซื้อทั้งหมดของผู้ใช้
 router.get("/", async (req, res) => {
   try {
-    const userId = req.user.userId; // ได้จาก middleware authenticate
+    const userId = req.user.userId;
 
-    const orders = await Order.find({ userId }).sort({ createdAt: -1 }); // เรียงจากใหม่ไปเก่า
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 });
     if (!orders || orders.length === 0) {
       return res.status(200).json({
         success: true,
