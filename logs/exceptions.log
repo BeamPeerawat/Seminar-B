@@ -4,3 +4,9 @@ ReferenceError: getProfileFromDB is not defined
     at ModuleJob.run (node:internal/modules/esm/module_job:234:25)
     at async ModuleLoader.import (node:internal/modules/esm/loader:473:24)
     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:123:5)
+2025-04-24T08:20:06.519Z [ERROR]: uncaughtException: authenticate is not defined
+ReferenceError: authenticate is not defined
+    at file:///C:/Users/User/OneDrive%20-%20Rajamangala%20University%20of%20Technology%20Isan/Desktop/Project/Seminar-B/routes/userRoutes.js:120:30
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:116:5)
