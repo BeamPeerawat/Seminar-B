@@ -1,17 +1,7 @@
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
-  orderNumber: {
-    type: Number,
-    required: [true, "Order number is required"],
-    unique: true,
-    validate: {
-      validator: function (value) {
-        return !isNaN(value) && Number.isInteger(value) && value > 0;
-      },
-      message: "Order number must be a valid positive integer",
-    },
-  },
+  orderNumber: { type: Number, required: true, unique: true }, // เพิ่ม orderNumber
   userId: { type: String, required: true },
   items: [
     {
@@ -31,7 +21,7 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: { type: String, required: true },
   status: { type: String, default: "pending" },
   createdAt: { type: Date, default: Date.now },
-}, { timestamps: true });
+});
 
 const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
 

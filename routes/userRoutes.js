@@ -1,16 +1,15 @@
 import express from "express";
 import User from "../models/User.js";
 import Profile from "../models/Profile.js";
-import authenticate from "../middleware/authenticate.js"; // เพิ่ม import นี้
 
 const router = express.Router();
 
 // ดึงข้อมูลผู้ใช้ทั้งหมด (สำหรับ Admin)
 router.get("/", async (req, res) => {
   try {
-    const users = await User.find();
-    const totalUsers = await User.countDocuments();
-    res.status(200).json({ users, totalUsers });
+    const users = await User.find(); // ดึงผู้ใช้ทั้งหมดจาก MongoDB
+    const totalUsers = await User.countDocuments(); // นับจำนวนผู้ใช้ทั้งหมด
+    res.status(200).json({ users, totalUsers }); // ส่งทั้งข้อมูลผู้ใช้และจำนวนทั้งหมด
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -18,19 +17,22 @@ router.get("/", async (req, res) => {
 
 // ล็อกอินด้วยไลน์ (ใช้ userId เป็น String)
 router.post("/login", async (req, res) => {
-  const { userId, name, profileImage } = req.body;
+  const { userId, name, profileImage } = req.body; // ใช้ userId แทน lineId
 
   try {
-    let user = await User.findOne({ userId });
+    let user = await User.findOne({ userId }); // ใช้ userId เป็น String
     if (!user) {
       user = await User.create({ userId, name, profileImage });
     }
 
+    // ตรวจสอบสถานะโปรไฟล์จาก Profile model
     const profile = await Profile.findOne({ userId });
     const profileCompleted = profile ? profile.profileCompleted : false;
 
     if (!profileCompleted) {
-      return res.status(200).json({ profileCompleted: false, userId: user.userId });
+      return res
+        .status(200)
+        .json({ profileCompleted: false, userId: user.userId }); // ใช้ userId เป็น String
     }
 
     res.status(200).json({ profileCompleted: true, userId: user.userId });
@@ -41,35 +43,41 @@ router.post("/login", async (req, res) => {
 
 // POST - บันทึกโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 router.post("/profile", async (req, res) => {
-  const { userId, fullName, address, phoneNumber, email, profileImage } = req.body;
+  const { userId, fullName, address, phoneNumber, email, profileImage } =
+    req.body;
 
   try {
-    let profile = await Profile.findOne({ userId });
+    // ตรวจสอบว่าผู้ใช้มีโปรไฟล์อยู่ในระบบแล้วใน Profile model
+    let profile = await Profile.findOne({ userId }); // ใช้ userId เป็น String
 
     if (!profile) {
+      // ถ้ายังไม่มีโปรไฟล์ให้สร้างใหม่ใน Profile model
       profile = new Profile({
-        userId,
+        userId, // ใช้ userId เป็น String
         name: fullName,
         address,
         phone: phoneNumber,
-        email: email || null,
+        email: email || null, // อนุญาตให้ email เป็น null
         profileImage,
-        profileCompleted: true,
+        profileCompleted: true, // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
       });
     } else {
+      // ถ้ามีโปรไฟล์แล้วให้ทำการอัปเดต
       profile.name = fullName;
       profile.address = address;
       profile.phone = phoneNumber;
-      profile.email = email || null;
+      profile.email = email || null; // อนุญาตให้ email เป็น null
       profile.profileImage = profileImage;
-      profile.profileCompleted = true;
+      profile.profileCompleted = true; // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
     }
 
+    // บันทึกโปรไฟล์ในฐานข้อมูล Profile
     await profile.save();
 
-    const user = await User.findOne({ userId });
+    // อัปเดตสถานะโปรไฟล์ใน User model
+    const user = await User.findOne({ userId }); // ใช้ userId เป็น String
     if (user) {
-      user.profileCompleted = true;
+      user.profileCompleted = true; // อัปเดต profileCompleted ใน User
       user.updatedAt = Date.now();
       await user.save();
     }
@@ -83,7 +91,7 @@ router.post("/profile", async (req, res) => {
 // ดึงข้อมูลโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 router.get("/profile/:userId", async (req, res) => {
   try {
-    const profile = await Profile.findOne({ userId: req.params.userId });
+    const profile = await Profile.findOne({ userId: req.params.userId }); // ใช้ userId เป็น String
     if (!profile) {
       return res.status(404).json({ error: "Profile not found." });
     }
@@ -105,43 +113,6 @@ router.put("/:id", async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }
-});
-
-// routes/userRoutes.js
-router.get("/admin/profile", authenticate, async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const profile = await Profile.findOne({ userId });
-    if (!profile) {
-      return res.status(404).json({ success: false, message: "Profile not found" });
-    }
-    res.status(200).json({
-      success: true,
-      profile: {
-        userId,
-        name: profile.name,
-        address: profile.address,
-        phone: profile.phone,
-        email: profile.email,
-        profileCompleted: profile.profileCompleted,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching admin profile:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ดึงผู้ใช้ทั้งหมดสำหรับแอดมิน
-router.get("/admin/users", authenticate, async (req, res) => {
-  try {
-    const users = await User.find();
-    const totalUsers = await User.countDocuments();
-    res.status(200).json({ success: true, users, totalUsers });
-  } catch (error) {
-    console.error("Error fetching users for admin:", error);
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -1,21 +1,23 @@
-import express from "express";
-import Content from "../models/Content.js";
-import authenticate from "../middleware/authenticate.js"; // เปลี่ยนจาก authenticateToken เป็น authenticate
-
+const express = require("express");
 const router = express.Router();
+const Content = require("../models/Content");
+const authenticateToken = require("../middleware/authenticateToken"); // Middleware
 
-router.get("/content", authenticate, async (req, res) => {
+// อ่านข้อมูลทั้งหมด
+router.get("/content", authenticateToken, async (req, res) => {
   const contents = await Content.find();
   res.json(contents);
 });
 
-router.post("/content", authenticate, async (req, res) => {
+// เพิ่มข้อมูลใหม่
+router.post("/content", authenticateToken, async (req, res) => {
   const newContent = new Content(req.body);
   await newContent.save();
   res.json(newContent);
 });
 
-router.put("/content/:id", authenticate, async (req, res) => {
+// แก้ไขข้อมูล
+router.put("/content/:id", authenticateToken, async (req, res) => {
   const updatedContent = await Content.findByIdAndUpdate(
     req.params.id,
     req.body,
@@ -24,9 +26,10 @@ router.put("/content/:id", authenticate, async (req, res) => {
   res.json(updatedContent);
 });
 
-router.delete("/content/:id", authenticate, async (req, res) => {
+// ลบข้อมูล
+router.delete("/content/:id", authenticateToken, async (req, res) => {
   await Content.findByIdAndDelete(req.params.id);
   res.json({ message: "Deleted Successfully" });
 });
 
-export default router;
+module.exports = router;
