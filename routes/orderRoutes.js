@@ -41,7 +41,7 @@ const getNextOrderNumber = async () => {
   }
 };
 
-// สร้างคำสั่งซื้อ (ไม่เปลี่ยนแปลง)
+// สร้างคำสั่งซื้อ
 router.post("/", authenticate, authMiddleware, async (req, res) => {
   try {
     const { items, total, customer, paymentMethod } = req.body;
@@ -107,7 +107,7 @@ router.post("/", authenticate, authMiddleware, async (req, res) => {
   }
 });
 
-// ดึงข้อมูลคำสั่งซื้อตาม orderNumber (ไม่เปลี่ยนแปลง)
+// ดึงข้อมูลคำสั่งซื้อตาม orderNumber
 router.get("/:orderNumber", authenticate, authMiddleware, async (req, res) => {
   try {
     const { orderNumber } = req.params;
@@ -133,7 +133,7 @@ router.get("/:orderNumber", authenticate, authMiddleware, async (req, res) => {
   }
 });
 
-// ดึงประวัติคำสั่งซื้อทั้งหมดของผู้ใช้ (ไม่เปลี่ยนแปลง)
+// ดึงประวัติคำสั่งซื้อทั้งหมดของผู้ใช้
 router.get("/", authenticate, authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -170,10 +170,14 @@ router.get("/", authenticate, authMiddleware, async (req, res) => {
   }
 });
 
-// เพิ่ม: ดึงคำสั่งซื้อทั้งหมด (สำหรับ Admin)
+// ดึงคำสั่งซื้อทั้งหมด (สำหรับ Admin)
 router.get("/all", authenticate, isAdmin, async (req, res) => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 });
+    // Query เฉพาะ document ที่ orderNumber เป็น number
+    const orders = await Order.find({ orderNumber: { $type: "number" } })
+      .sort({ createdAt: -1 })
+      .populate("userId");
+    
     if (!orders || orders.length === 0) {
       return res.status(200).json({
         success: true,
@@ -185,8 +189,9 @@ router.get("/all", authenticate, isAdmin, async (req, res) => {
     const ordersData = await Promise.all(
       orders.map(async (order) => {
         const orderData = order.toObject();
+        // Debug: Log orderNumber ที่ไม่ถูกต้อง
         if (typeof orderData.orderNumber !== "number" || isNaN(orderData.orderNumber)) {
-          console.error(`Invalid orderNumber found: ${orderData._id}, orderNumber: ${orderData.orderNumber}`);
+          console.error(`Invalid orderNumber found: _id=${orderData._id}, orderNumber=${orderData.orderNumber}`);
         }
         try {
           const user = await User.findOne({ userId: order.userId });
@@ -203,6 +208,7 @@ router.get("/all", authenticate, isAdmin, async (req, res) => {
       })
     );
 
+    console.log("Fetched orders:", ordersData.length); // Debug
     res.status(200).json({
       success: true,
       orders: ordersData,
@@ -217,7 +223,7 @@ router.get("/all", authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// เพิ่ม: อัปเดตสถานะคำสั่งซื้อ
+// อัปเดตสถานะคำสั่งซื้อ
 router.put("/:orderNumber/status", authenticate, isAdmin, async (req, res) => {
   try {
     const { orderNumber } = req.params;
