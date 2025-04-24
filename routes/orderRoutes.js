@@ -24,12 +24,21 @@ const isAdmin = async (req, res, next) => {
 
 // ฟังก์ชันเพื่อดึงและเพิ่มเลขลำดับ
 const getNextOrderNumber = async () => {
-  const counter = await OrderCounter.findByIdAndUpdate(
-    "order_counter",
-    { $inc: { sequence_value: 1 } },
-    { new: true, upsert: true }
-  );
-  return counter.sequence_value;
+  try {
+    const counter = await OrderCounter.findByIdAndUpdate(
+      "order_counter",
+      { $inc: { sequence_value: 1 } },
+      { new: true, upsert: true }
+    );
+    const sequenceValue = counter.sequence_value;
+    if (typeof sequenceValue !== "number" || isNaN(sequenceValue)) {
+      throw new Error("Invalid sequence value for orderNumber");
+    }
+    return sequenceValue;
+  } catch (error) {
+    console.error("Error generating orderNumber:", error);
+    throw error;
+  }
 };
 
 // สร้างคำสั่งซื้อ (ไม่เปลี่ยนแปลง)
@@ -37,8 +46,6 @@ router.post("/", authenticate, authMiddleware, async (req, res) => {
   try {
     const { items, total, customer, paymentMethod } = req.body;
     const userId = req.user.userId;
-
-    console.log("Received order data:", { items, total, customer, paymentMethod, userId });
 
     if (!userId) {
       return res.status(401).json({ success: false, error: "Unauthorized: No user logged in" });
@@ -62,6 +69,9 @@ router.post("/", authenticate, authMiddleware, async (req, res) => {
     }
 
     const orderNumber = await getNextOrderNumber();
+    if (typeof orderNumber !== "number" || isNaN(orderNumber)) {
+      throw new Error("Invalid orderNumber generated");
+    }
 
     const order = await Order.create({
       orderNumber,
@@ -83,14 +93,11 @@ router.post("/", authenticate, authMiddleware, async (req, res) => {
     const orderData = order.toObject();
     orderData.createdAt = new Date(orderData.createdAt).toLocaleString();
 
-    const responseData = {
+    res.status(201).json({
       success: true,
       orderNumber,
       order: orderData,
-    };
-    console.log("Sending response:", responseData);
-
-    res.status(201).json(responseData);
+    });
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({
@@ -178,6 +185,9 @@ router.get("/all", authenticate, isAdmin, async (req, res) => {
     const ordersData = await Promise.all(
       orders.map(async (order) => {
         const orderData = order.toObject();
+        if (typeof orderData.orderNumber !== "number" || isNaN(orderData.orderNumber)) {
+          console.error(`Invalid orderNumber found: ${orderData._id}, orderNumber: ${orderData.orderNumber}`);
+        }
         try {
           const user = await User.findOne({ userId: order.userId });
           orderData.customerName = user ? user.displayName : "Unknown User";

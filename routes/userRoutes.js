@@ -116,4 +116,39 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// routes/userRoutes.js
+router.get("/admin/profile", authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId; // จาก middleware authenticate
+    const profile = await Profile.findOne({ userId });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: "Profile not found" });
+    }
+    res.status(200).json({
+      success: true,
+      profile: {
+        userId,
+        name: profile.name,
+        address: profile.address,
+        phone: profile.phone,
+        email: profile.email,
+        profileCompleted: profile.profileCompleted,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admin profile:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get("/admin/users", authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find();
+    const totalUsers = await User.countDocuments();
+    res.status(200).json({ success: true, users, totalUsers });
+  } catch (error) {
+    console.error("Error fetching users for admin:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 export default router;
