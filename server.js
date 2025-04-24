@@ -20,12 +20,11 @@ import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import servicesRoutes from "./routes/servicesRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
-
 dotenv.config();
 
 // Initialize App
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // ใช้ process.env.PORT ที่ Render กำหนด หรือ 5000 ถ้าไม่กำหนด
 
 // Middleware
 app.use(helmet());
@@ -39,10 +38,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
 app.use("/api", profileRoutes);
-app.use("/api/orders", orderRoutes); // อัปเดตให้ใช้ orderRoutes โดยตรง
-app.use("/api/products", productRoutes);
+app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
+app.use("/api/products", productRoutes); // เพิ่ม route สำหรับสินค้า
 app.use("/api/users", userRoutes);
-app.use("/api/services", servicesRoutes);
+app.use("/api/services", servicesRoutes); // เปลี่ยนจาก /api เป็น /api/services
 app.use("/api/cart", cartRoutes);
 
 // Route สำหรับหน้าแรก
@@ -56,6 +55,6 @@ connectDB()
   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
 // Start Server
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก
   logger.info(`Server is running on http://localhost:${PORT}`);
 });

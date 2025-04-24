@@ -1,6 +1,6 @@
-import axios from "axios";
+import axios from "axios"; // ใช้ axios แทน jwt
 import User from "../models/User.js";
-import logger from "../utils/logger.js";
+import logger from "../utils/logger.js"; // นำเข้า logger เพื่อ log ข้อผิดพลาด
 
 const authenticate = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1]; // ดึง token จาก header (Bearer <token>)
@@ -28,8 +28,8 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    // เก็บข้อมูลผู้ใช้ใน req.user รวมถึง role
-    req.user = { userId: user.userId, role: user.role }; // เพิ่ม role
+    // เก็บข้อมูลผู้ใช้ใน req.user (ใช้ userId จาก LINE)
+    req.user = { userId: user.userId }; // หรือเก็บข้อมูลเพิ่มเติมจาก User model
     next();
   } catch (error) {
     logger.error("Error authenticating LINE token:", error.message);
