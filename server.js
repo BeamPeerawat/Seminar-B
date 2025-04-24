@@ -2,11 +2,11 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import mongoose from "mongoose"; // ใช้ mongoose โดยตรงเพื่อลดการพึ่งพา db.js
 import blogRoutes from "./routes/blogRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
-import connectDB from "./db.js";
 import { corsOptions } from "./config/corsConfig.js";
 import { exchangeCode } from "./controllers/authController.js";
 import profileRoutes from "./routes/profileRoutes.js";
@@ -20,8 +20,21 @@ import cartRoutes from "./routes/cartRoutes.js";
 
 dotenv.config();
 
+console.log("Starting server..."); // Debug: ตรวจสอบว่าเริ่มรัน
+
 const app = express();
 const PORT = process.env.PORT || 10000;
+
+console.log("Environment variables:", {
+  MONGO_URI: process.env.MONGO_URI ? "Set" : "Missing",
+  JWT_SECRET: process.env.JWT_SECRET ? "Set" : "Missing",
+  LINE_CLIENT_ID: process.env.LINE_CLIENT_ID ? "Set" : "Missing",
+  LINE_CLIENT_SECRET: process.env.LINE_CLIENT_SECRET ? "Set" : "Missing",
+  LINE_REDIRECT_URI: process.env.LINE_REDIRECT_URI ? "Set" : "Missing",
+  CLIENT_URL: process.env.CLIENT_URL ? "Set" : "Missing",
+  NODE_ENV: process.env.NODE_ENV,
+  PORT: PORT,
+}); // Debug: ตรวจสอบตัวแปร
 
 app.use(helmet());
 app.use(express.json());
@@ -50,7 +63,11 @@ app.use((err, req, res, next) => {
 
 const startServer = async () => {
   try {
-    await connectDB();
+    console.log("Connecting to MongoDB..."); // Debug
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log("Connected to MongoDB successfully");
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on http://0.0.0.0:${PORT}`);
