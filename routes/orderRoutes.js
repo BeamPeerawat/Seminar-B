@@ -178,8 +178,13 @@ router.get("/all", authenticate, isAdmin, async (req, res) => {
     const ordersData = await Promise.all(
       orders.map(async (order) => {
         const orderData = order.toObject();
-        const user = await User.findOne({ userId: order.userId });
-        orderData.customerName = user ? user.displayName : "Unknown";
+        try {
+          const user = await User.findOne({ userId: order.userId });
+          orderData.customerName = user ? user.displayName : "Unknown User";
+        } catch (userError) {
+          console.error(`Error fetching user for order ${order.orderNumber}:`, userError);
+          orderData.customerName = "Unknown User";
+        }
         orderData.createdAt = new Date(orderData.createdAt).toLocaleString("th-TH", {
           dateStyle: "medium",
           timeStyle: "short",
@@ -193,7 +198,7 @@ router.get("/all", authenticate, isAdmin, async (req, res) => {
       orders: ordersData,
     });
   } catch (error) {
-    console.error("Error fetching all orders:", error);
+    console.error("Error in GET /api/orders/all:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch orders",
