@@ -20,11 +20,12 @@ import productRoutes from "./routes/productRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import servicesRoutes from "./routes/servicesRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
+
 dotenv.config();
 
 // Initialize App
 const app = express();
-const PORT = process.env.PORT || 5000; // ใช้ process.env.PORT ที่ Render กำหนด หรือ 5000 ถ้าไม่กำหนด
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
@@ -38,10 +39,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.post("/api/auth/exchange-code", exchangeCode);
 app.use("/api", profileRoutes);
-app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
-app.use("/api/products", productRoutes); // เพิ่ม route สำหรับสินค้า
+app.use("/api/orders", orderRoutes); // อัปเดตให้ใช้ orderRoutes โดยตรง
+app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/services", servicesRoutes); // เปลี่ยนจาก /api เป็น /api/services
+app.use("/api/services", servicesRoutes);
 app.use("/api/cart", cartRoutes);
 
 // Route สำหรับหน้าแรก
@@ -55,75 +56,6 @@ connectDB()
   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
 
 // Start Server
-app.listen(PORT, '0.0.0.0', () => {   // ใช้ 0.0.0.0 เพื่อให้แอปฟังการเชื่อมต่อจากภายนอก
+app.listen(PORT, "0.0.0.0", () => {
   logger.info(`Server is running on http://localhost:${PORT}`);
 });
-
-// import express from "express";
-// import dotenv from "dotenv";
-// import cors from "cors";
-// import helmet from "helmet";
-// import blogRoutes from "./routes/blogRoutes.js";
-// import projectRoutes from "./routes/projectRoutes.js";
-// import authRoutes from "./routes/authRoutes.js";
-// import visitorRoutes from "./routes/visitorRoutes.js";
-// import connectDB from "./db.js";
-// import { corsOptions } from "./config/corsConfig.js";
-// import { exchangeCode } from "./controllers/authController.js";
-// import logger from "./utils/logger.js";
-// import profileRoutes from "./routes/profileRoutes.js";
-// import orderRoutes from "./routes/orderRoutes.js";
-// import authenticate from "./middleware/authenticate.js";
-// import { authMiddleware } from "./middleware/authMiddleware.js";
-// import productRoutes from "./routes/productRoutes.js";
-// import userRoutes from "./routes/userRoutes.js";
-// import servicesRoutes from "./routes/servicesRoutes.js";
-
-// dotenv.config();
-
-// // Initialize App
-// const app = express();
-// const PORT = process.env.PORT || 5000;
-
-// // Middleware
-// app.use(helmet());
-// app.use(express.json());
-// app.use(cors(corsOptions));
-
-// // Routes
-// app.use("/api/blogs", blogRoutes);
-// app.use("/api/projects", projectRoutes);
-// app.use("/api/auth", authRoutes);
-// app.use("/api/visitor", visitorRoutes);
-// app.post("/api/auth/exchange-code", exchangeCode);
-// app.use("/api/profile", profileRoutes);
-// app.use("/api/orders", authenticate, authMiddleware, orderRoutes);
-// app.use("/api/products", productRoutes);
-// app.use("/api/users", userRoutes);
-// app.use("/api/services", servicesRoutes);
-
-// // Route สำหรับหน้าแรก
-// app.get("/", (req, res) => {
-//   res.send("Hello, World! Your backend is working correctly.");
-// });
-
-// // Debug Route
-// app.get("/api/status", (req, res) => {
-//   res.json({ status: "Backend is running", timestamp: new Date().toISOString() });
-// });
-
-// // Global Error Handler
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({ error: "Something went wrong!" });
-// });
-
-// // Connect to Database
-// connectDB()
-//   .then(() => logger.info("Connected to MongoDB successfully"))
-//   .catch((error) => logger.error("Failed to connect to MongoDB:", error));
-
-// // Start Server
-// app.listen(PORT, () => {
-//   logger.info(`Server is running on port ${PORT}`);
-// });

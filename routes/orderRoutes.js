@@ -3,23 +3,95 @@ import Order from "../models/Order.js";
 import Profile from "../models/Profile.js";
 import User from "../models/User.js";
 import Product from "../models/Product.js";
-import OrderCounter from "../models/OrderCounter.js"; // เพิ่ม OrderCounter
+import OrderCounter from "../models/OrderCounter.js";
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminMiddleware } from "../middleware/adminMiddleware.js"; // เพิ่ม middleware
 
 const router = express.Router();
 
-router.use(authenticate, authMiddleware);
+// เฉพาะแอดมิน: ดึงคำสั่งซื้อทั้งหมด
+router.get("/admin/all", authenticate, adminMiddleware, async (req, res) => {
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 }); // เรียงจากใหม่สุด
+    const ordersData = orders.map((order) => {
+      const orderData = order.toObject();
+      orderData.createdAt = new Date(orderData.createdAt).toLocaleString("th-TH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      return orderData;
+    });
 
-// ฟังก์ชันเพื่อดึงและเพิ่มเลขลำดับ
-const getNextOrderNumber = async () => {
-  const counter = await OrderCounter.findByIdAndUpdate(
-    "order_counter",
-    { $inc: { sequence_value: 1 } },
-    { new: true, upsert: true } // ถ้าไม่มีจะสร้างใหม่เริ่มที่ 10000
-  );
-  return counter.sequence_value;
-};
+    res.status(200).json({
+      success: true,
+      orders: ordersData,
+      totalOrders: orders.length,
+    });
+  } catch (error) {
+    console.error("Error fetching all orders:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch orders",
+      details: error.message,
+    });
+  }
+});
+
+// อัปเดตสถานะคำสั่งซื้อ (สำหรับแอดมิน)
+router.put("/:orderNumber/status", authenticate, adminMiddleware, async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const { status } = req.body;
+
+    // ตรวจสอบสถานะที่ถูกต้อง
+    const validStatuses = ["pending", "confirmed", "processing", "shipped", "completed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, error: "Invalid status" });
+    }
+
+    const order = await Order.findOne({ orderNumber: Number(orderNumber) });
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    // ถ้ายกเลิกคำสั่งซื้อ ให้คืนสต็อก
+    if (status === "cancelled" && order.status !== "cancelled") {
+      for (const item of order.items) {
+        const product = await Product.findOne({ productId: item.productId });
+        if (product) {
+          product.stock += item.quantity;
+          await product.save();
+        }
+      }
+    }
+
+    order.status = status;
+    await order.save();
+
+    const orderData = order.toObject();
+    orderData.createdAt = new Date(orderData.createdAt).toLocaleString("th-TH", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Order status updated successfully",
+      order: orderData,
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to update order status",
+      details: error.message,
+    });
+  }
+});
+
+// เส้นทางที่มีอยู่ (สำหรับผู้ใช้ทั่วไป)
+router.use(authenticate, authMiddleware);
 
 // สร้างคำสั่งซื้อ
 router.post("/", async (req, res) => {
@@ -55,7 +127,7 @@ router.post("/", async (req, res) => {
     const orderNumber = await getNextOrderNumber();
 
     const order = await Order.create({
-      orderNumber, // เพิ่ม orderNumber
+      orderNumber,
       items,
       total,
       customer,
@@ -66,7 +138,7 @@ router.post("/", async (req, res) => {
 
     const profile = await Profile.findOne({ userId });
     if (profile) {
-      profile.orders.push(order._id); // ยังเก็บ _id ใน profile เพื่อการอ้างอิง
+      profile.orders.push(order._id);
       profile.updatedAt = Date.now();
       await profile.save();
     }
@@ -76,7 +148,7 @@ router.post("/", async (req, res) => {
 
     const responseData = {
       success: true,
-      orderNumber, // ส่ง orderNumber กลับไปแทน orderId
+      orderNumber,
       order: orderData,
     };
     console.log("Sending response:", responseData);
@@ -91,7 +163,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลคำสั่งซื้อตาม orderId
+// ดึงข้อมูลคำสั่งซื้อตาม orderNumber
 router.get("/:orderNumber", async (req, res) => {
   try {
     const { orderNumber } = req.params;
@@ -153,5 +225,15 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
+// ฟังก์ชันเพื่อดึงและเพิ่มเลขลำดับ
+const getNextOrderNumber = async () => {
+  const counter = await OrderCounter.findByIdAndUpdate(
+    "order_counter",
+    { $inc: { sequence_value: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.sequence_value;
+};
 
 export default router;
