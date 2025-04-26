@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
   orderNumber: { type: Number, required: true, unique: true },
@@ -24,9 +24,9 @@ const orderSchema = new mongoose.Schema({
     enum: ["pending", "awaiting_verification", "confirmed", "ready_to_ship", "delivered", "cancelled"],
     default: "pending",
   },
-  slipPath: { type: String }, // เก็บ path ของสลิป
+  slipPath: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("Order", orderSchema);
+export default mongoose.model("Order", orderSchema);
