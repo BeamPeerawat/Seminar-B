@@ -3,12 +3,44 @@ import Order from "../models/Order.js";
 import Profile from "../models/Profile.js";
 import User from "../models/User.js";
 import Product from "../models/Product.js";
-import OrderCounter from "../models/OrderCounter.js"; // เพิ่ม OrderCounter
+import OrderCounter from "../models/OrderCounter.js";
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const router = express.Router();
 
+// ตั้งค่า Multer สำหรับอัปโหลดสลิป
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = "./uploads/slips";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `slip-${req.body.orderNumber}-${Date.now()}${path.extname(file.originalname)}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // จำกัดขนาดไฟล์ 5MB
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error("เฉพาะไฟล์รูปภาพ (jpg, jpeg, png) เท่านั้น"));
+  },
+});
+
+// ใช้ middleware authenticate และ authMiddleware สำหรับทุกเส้นทาง
 router.use(authenticate, authMiddleware);
 
 // ฟังก์ชันเพื่อดึงและเพิ่มเลขลำดับ
@@ -16,7 +48,7 @@ const getNextOrderNumber = async () => {
   const counter = await OrderCounter.findByIdAndUpdate(
     "order_counter",
     { $inc: { sequence_value: 1 } },
-    { new: true, upsert: true } // ถ้าไม่มีจะสร้างใหม่เริ่มที่ 10000
+    { new: true, upsert: true }
   );
   return counter.sequence_value;
 };
@@ -55,7 +87,7 @@ router.post("/", async (req, res) => {
     const orderNumber = await getNextOrderNumber();
 
     const order = await Order.create({
-      orderNumber, // เพิ่ม orderNumber
+      orderNumber,
       items,
       total,
       customer,
@@ -66,7 +98,7 @@ router.post("/", async (req, res) => {
 
     const profile = await Profile.findOne({ userId });
     if (profile) {
-      profile.orders.push(order._id); // ยังเก็บ _id ใน profile เพื่อการอ้างอิง
+      profile.orders.push(order._id);
       profile.updatedAt = Date.now();
       await profile.save();
     }
@@ -76,7 +108,7 @@ router.post("/", async (req, res) => {
 
     const responseData = {
       success: true,
-      orderNumber, // ส่ง orderNumber กลับไปแทน orderId
+      orderNumber,
       order: orderData,
     };
     console.log("Sending response:", responseData);
@@ -91,13 +123,21 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลคำสั่งซื้อตาม orderId
+// ดึงข้อมูลคำสั่งซื้อตาม orderNumber
 router.get("/:orderNumber", async (req, res) => {
   try {
     const { orderNumber } = req.params;
     const userId = req.user.userId;
 
-    const order = await Order.findOne({ orderNumber: Number(orderNumber), userId });
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // ถ้าเป็นแอดมิน สามารถดูออเดอร์ใดก็ได้
+    const query = user.role === "admin" ? { orderNumber: Number(orderNumber) } : { orderNumber: Number(orderNumber), userId };
+
+    const order = await Order.findOne(query);
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
@@ -110,6 +150,7 @@ router.get("/:orderNumber", async (req, res) => {
       order: orderData,
     });
   } catch (error) {
+    console.error("Error fetching order:", error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -117,17 +158,25 @@ router.get("/:orderNumber", async (req, res) => {
   }
 });
 
-// ดึงประวัติคำสั่งซื้อทั้งหมดของผู้ใช้
+// ดึงประวัติคำสั่งซื้อทั้งหมด
 router.get("/", async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // ถ้าเป็นแอดมิน ดึงออเดอร์ทั้งหมด
+    const query = user.role === "admin" ? {} : { userId };
+
+    const orders = await Order.find(query).sort({ createdAt: -1 });
     if (!orders || orders.length === 0) {
       return res.status(200).json({
         success: true,
         orders: [],
-        message: "No orders found for this user",
+        message: "No orders found",
       });
     }
 
@@ -151,6 +200,67 @@ router.get("/", async (req, res) => {
       error: "Failed to fetch orders",
       details: error.message,
     });
+  }
+});
+
+// อัปโหลดสลิป
+router.post("/upload-slip", upload.single("slip"), async (req, res) => {
+  try {
+    const { orderNumber } = req.body;
+    const userId = req.user.userId;
+
+    if (!orderNumber || !req.file) {
+      return res.status(400).json({ success: false, error: "Missing orderNumber or slip file" });
+    }
+
+    const order = await Order.findOne({ orderNumber: Number(orderNumber), userId });
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    order.slipPath = req.file.path.replace(/\\/g, "/");
+    order.status = "awaiting_verification";
+    order.updatedAt = Date.now();
+    await order.save();
+
+    res.status(200).json({ success: true, message: "Slip uploaded successfully" });
+  } catch (error) {
+    console.error("Error uploading slip:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// อัปเดตสถานะออเดอร์
+router.put("/:orderNumber/status", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const { status } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findOne({ userId });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+    }
+
+    const validStatuses = ["pending", "awaiting_verification", "confirmed", "ready_to_ship", "delivered", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, error: "Invalid status" });
+    }
+
+    const order = await Order.findOneAndUpdate(
+      { orderNumber: Number(orderNumber) },
+      { status, updatedAt: Date.now() },
+      { new: true }
+    );
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    res.status(200).json({ success: true, order });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

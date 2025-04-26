@@ -1,7 +1,7 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema({
-  orderNumber: { type: Number, required: true, unique: true }, // เพิ่ม orderNumber
+  orderNumber: { type: Number, required: true, unique: true },
   userId: { type: String, required: true },
   items: [
     {
@@ -19,10 +19,14 @@ const orderSchema = new mongoose.Schema({
     phone: { type: String },
   },
   paymentMethod: { type: String, required: true },
-  status: { type: String, default: "pending" },
+  status: {
+    type: String,
+    enum: ["pending", "awaiting_verification", "confirmed", "ready_to_ship", "delivered", "cancelled"],
+    default: "pending",
+  },
+  slipPath: { type: String }, // เก็บ path ของสลิป
   createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
-const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
-
-export default Order;
+module.exports = mongoose.model("Order", orderSchema);
