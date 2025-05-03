@@ -172,7 +172,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// อัปโหลดสลิป
+// อัปโหลดสลิป (รับ slipUrl จาก Frontend)
 router.post("/upload-slip", async (req, res) => {
   try {
     const { orderNumber, slipUrl } = req.body;
