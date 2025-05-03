@@ -182,6 +182,12 @@ router.post("/upload-slip", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing orderNumber or slipUrl" });
     }
 
+    // ตรวจสอบว่า slipUrl เป็น URL ที่ถูกต้องและมาจาก Cloudinary
+    const cloudinaryUrlPattern = /^https:\/\/res\.cloudinary\.com\/debhfdjki\//;
+    if (!cloudinaryUrlPattern.test(slipUrl)) {
+      return res.status(400).json({ success: false, error: "Invalid slipUrl: Must be a valid Cloudinary URL" });
+    }
+
     const order = await Order.findOne({ orderNumber: Number(orderNumber), userId });
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
@@ -192,7 +198,7 @@ router.post("/upload-slip", async (req, res) => {
     order.updatedAt = Date.now();
     await order.save();
 
-    res.status(200).json({ success: true, message: "Slip uploaded successfully" });
+    res.status(200).json({ success: true, message: "Slip uploaded successfully", slipUrl });
   } catch (error) {
     console.error("Error uploading slip:", error);
     res.status(500).json({ success: false, error: error.message });
