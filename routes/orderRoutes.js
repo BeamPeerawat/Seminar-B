@@ -6,39 +6,8 @@ import Product from "../models/Product.js";
 import OrderCounter from "../models/OrderCounter.js";
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
 
 const router = express.Router();
-
-// ตั้งค่า Multer สำหรับอัปโหลดสลิป
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = "./uploads/slips";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `slip-${req.body.orderNumber}-${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // จำกัดขนาดไฟล์ 5MB
-  fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (extname && mimetype) {
-      return cb(null, true);
-    }
-    cb(new Error("เฉพาะไฟล์รูปภาพ (jpg, jpeg, png) เท่านั้น"));
-  },
-});
 
 // ใช้ middleware authenticate และ authMiddleware สำหรับทุกเส้นทาง
 router.use(authenticate, authMiddleware);
@@ -204,13 +173,13 @@ router.get("/", async (req, res) => {
 });
 
 // อัปโหลดสลิป
-router.post("/upload-slip", upload.single("slip"), async (req, res) => {
+router.post("/upload-slip", async (req, res) => {
   try {
-    const { orderNumber } = req.body;
+    const { orderNumber, slipUrl } = req.body;
     const userId = req.user.userId;
 
-    if (!orderNumber || !req.file) {
-      return res.status(400).json({ success: false, error: "Missing orderNumber or slip file" });
+    if (!orderNumber || !slipUrl) {
+      return res.status(400).json({ success: false, error: "Missing orderNumber or slipUrl" });
     }
 
     const order = await Order.findOne({ orderNumber: Number(orderNumber), userId });
@@ -218,7 +187,7 @@ router.post("/upload-slip", upload.single("slip"), async (req, res) => {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
 
-    order.slipPath = req.file.path.replace(/\\/g, "/");
+    order.slipUrl = slipUrl;
     order.status = "awaiting_verification";
     order.updatedAt = Date.now();
     await order.save();
