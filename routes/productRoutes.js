@@ -1,9 +1,11 @@
 import express from "express";
 import Product from "../models/Product.js";
 import Service from "../models/Service.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const router = express.Router();
 
+// ดึงข้อมูลสินค้าทั้งหมดหรือตาม serviceId
 router.get("/", async (req, res) => {
   try {
     const { serviceId } = req.query;
@@ -39,6 +41,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ดึงข้อมูลสินค้าตาม productId
 router.get("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
@@ -59,9 +62,10 @@ router.get("/:productId", async (req, res) => {
   }
 });
 
+// เพิ่มสินค้าใหม่
 router.post("/", async (req, res) => {
   try {
-    const { productId, name, price, stock, details, image, serviceId } = req.body;
+    const { productId, name, price, stock, details, serviceId, image } = req.body;
     if (!productId || !name || !price || !stock || !details || !serviceId) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -76,10 +80,26 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Product ID already exists" });
     }
 
-    const product = new Product({ productId, name, price, stock, details, image, serviceId });
+    let imageUrl = "";
+    if (image) {
+      const result = await cloudinary.uploader.upload(image, {
+        folder: "products",
+      });
+      imageUrl = result.secure_url;
+    }
+
+    const product = new Product({ 
+      productId: Number(productId), 
+      name, 
+      price: Number(price), 
+      stock: Number(stock), 
+      details, 
+      image: imageUrl, 
+      serviceId 
+    });
     await product.save();
 
-    service.productIds.push(productId);
+    service.productIds.push(Number(productId));
     await service.save();
 
     res.status(201).json({ message: "Product added successfully", product });
@@ -89,10 +109,11 @@ router.post("/", async (req, res) => {
   }
 });
 
+// อัปเดตสินค้า
 router.put("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
-    const { name, price, stock, details, image, serviceId } = req.body;
+    const { name, price, stock, details, serviceId, image } = req.body;
 
     const product = await Product.findOne({ productId: Number(productId) });
     if (!product) {
@@ -101,11 +122,18 @@ router.put("/:productId", async (req, res) => {
 
     const oldServiceId = product.serviceId;
     product.name = name || product.name;
-    product.price = price !== undefined ? price : product.price;
-    product.stock = stock !== undefined ? stock : product.stock;
+    product.price = price !== undefined ? Number(price) : product.price;
+    product.stock = stock !== undefined ? Number(stock) : product.stock;
     product.details = details || product.details;
-    product.image = image || product.image;
     product.serviceId = serviceId || product.serviceId;
+
+    if (image) {
+      const result = await cloudinary.uploader.upload(image, {
+        folder: "products",
+      });
+      product.image = result.secure_url;
+    }
+
     await product.save();
 
     if (serviceId && serviceId !== oldServiceId) {
@@ -128,6 +156,7 @@ router.put("/:productId", async (req, res) => {
   }
 });
 
+// ลบสินค้า
 router.delete("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
@@ -142,6 +171,11 @@ router.delete("/:productId", async (req, res) => {
       await service.save();
     }
 
+    if (product.image) {
+      const publicId = product.image.split("/").pop().split(".")[0];
+      await cloudinary.uploader.destroy(`products/${publicId}`);
+    }
+
     await Product.deleteOne({ productId: Number(productId) });
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
@@ -150,6 +184,7 @@ router.delete("/:productId", async (req, res) => {
   }
 });
 
+// ดึงข้อมูลสต็อก
 router.get("/stock", async (req, res) => {
   try {
     const stock = await Product.find().select("productId stock");
@@ -167,6 +202,7 @@ router.get("/stock", async (req, res) => {
   }
 });
 
+// อัปเดตสต็อก
 router.post("/stock", async (req, res) => {
   try {
     const { productId, change } = req.body;
@@ -183,6 +219,7 @@ router.post("/stock", async (req, res) => {
   }
 });
 
+// ตรวจสอบสต็อก
 router.post("/check-stock", async (req, res) => {
   try {
     const { items } = req.body;
@@ -230,6 +267,7 @@ router.post("/check-stock", async (req, res) => {
   }
 });
 
+// Seed ข้อมูล
 router.post("/seed", async (req, res) => {
   try {
     const { services } = req.body;
