@@ -24,8 +24,7 @@ const orderSchema = new mongoose.Schema({
     enum: ["pending", "awaiting_verification", "confirmed", "ready_to_ship", "delivered", "cancelled"],
     default: "pending",
   },
-  slipUrl: { type: String },
-  isNotified: { type: Boolean, default: false }, // เพิ่มฟิลด์สำหรับการแจ้งเตือน
+  slipUrl: { type: String }, // เปลี่ยนจาก slipPath เป็น slipUrl
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
