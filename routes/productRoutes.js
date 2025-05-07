@@ -3,6 +3,13 @@ import Product from "../models/Product.js";
 import Service from "../models/Service.js";
 import { v2 as cloudinary } from "cloudinary";
 
+// ตั้งค่า Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 const router = express.Router();
 
 // ดึงข้อมูลสินค้าทั้งหมดหรือตาม serviceId
@@ -65,7 +72,9 @@ router.get("/:productId", async (req, res) => {
 // เพิ่มสินค้าใหม่
 router.post("/", async (req, res) => {
   try {
-    const { productId, name, price, stock, details, serviceId, image } = req.body;
+    const { productId, name, price, stock, details, serviceId } = req.body;
+    const imageFile = req.files?.image;
+
     if (!productId || !name || !price || !stock || !details || !serviceId) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -81,9 +90,19 @@ router.post("/", async (req, res) => {
     }
 
     let imageUrl = "";
-    if (image) {
-      const result = await cloudinary.uploader.upload(image, {
-        folder: "products",
+    if (imageFile) {
+      if (!imageFile.mimetype.startsWith("image/")) {
+        return res.status(400).json({ error: "File must be an image" });
+      }
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder: "products" },
+          (error, result) => {
+            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            resolve(result);
+          }
+        );
+        uploadStream.end(imageFile.data);
       });
       imageUrl = result.secure_url;
     }
@@ -113,7 +132,8 @@ router.post("/", async (req, res) => {
 router.put("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
-    const { name, price, stock, details, serviceId, image } = req.body;
+    const { name, price, stock, details, serviceId } = req.body;
+    const imageFile = req.files?.image;
 
     const product = await Product.findOne({ productId: Number(productId) });
     if (!product) {
@@ -127,9 +147,19 @@ router.put("/:productId", async (req, res) => {
     product.details = details || product.details;
     product.serviceId = serviceId || product.serviceId;
 
-    if (image) {
-      const result = await cloudinary.uploader.upload(image, {
-        folder: "products",
+    if (imageFile) {
+      if (!imageFile.mimetype.startsWith("image/")) {
+        return res.status(400).json({ error: "File must be an image" });
+      }
+      const result = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder: "products" },
+          (error, result) => {
+            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            resolve(result);
+          }
+        );
+        uploadStream.end(imageFile.data);
       });
       product.image = result.secure_url;
     }
