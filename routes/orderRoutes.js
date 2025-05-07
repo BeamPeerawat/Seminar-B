@@ -63,6 +63,7 @@ router.post("/", async (req, res) => {
       paymentMethod,
       status: "pending",
       userId,
+      isNotified: false, // ตั้งค่าเริ่มต้น
     });
 
     const profile = await Profile.findOne({ userId });
@@ -131,14 +132,21 @@ router.get("/:orderNumber", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const userId = req.user.userId;
+    const { status } = req.query; // เพิ่มการรับ query parameter
 
     const user = await User.findOne({ userId });
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // ถ้าเป็นแอดมิน ดึงออเดอร์ทั้งหมด
-    const query = user.role === "admin" ? {} : { userId };
+    // สร้าง query
+    let query = user.role === "admin" ? {} : { userId };
+    if (status) {
+      query.status = status;
+    }
+    if (user.role === "admin" && status === "pending") {
+      query.isNotified = false; // เฉพาะแอดมินเห็นการแจ้งเตือนที่ยังไม่ได้อ่าน
+    }
 
     const orders = await Order.find(query).sort({ createdAt: -1 });
     if (!orders || orders.length === 0) {
@@ -235,6 +243,34 @@ router.put("/:orderNumber/status", async (req, res) => {
     res.status(200).json({ success: true, order });
   } catch (error) {
     console.error("Error updating order status:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mark การแจ้งเตือนว่าถูกอ่าน
+router.patch("/:orderNumber/notification", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const userId = req.user.userId;
+
+    const user = await User.findOne({ userId });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+    }
+
+    const order = await Order.findOneAndUpdate(
+      { orderNumber: Number(orderNumber) },
+      { isNotified: true, updatedAt: Date.now() },
+      { new: true }
+    );
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    res.status(200).json({ success: true, message: "Notification marked as read" });
+  } catch (error) {
+    console.error("Error marking notification:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
