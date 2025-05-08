@@ -176,20 +176,21 @@ router.get("/", async (req, res) => {
 router.get("/pending", async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log(`Fetching pending orders for userId: ${userId}`);
 
     const user = await User.findOne({ userId });
-    if (!user || user.role !== "admin") {
+    if (!user) {
+      console.log(`User not found: ${userId}`);
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    if (user.role !== "admin") {
+      console.log(`Access denied: User ${userId} is not admin`);
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
     const orders = await Order.find({ status: "pending" }).sort({ createdAt: -1 });
-    if (!orders || orders.length === 0) {
-      return res.status(200).json({
-        success: true,
-        orders: [],
-        message: "No pending orders found",
-      });
-    }
+    console.log(`Found ${orders.length} pending orders`);
 
     const ordersData = orders.map((order) => ({
       _id: order._id,
@@ -203,6 +204,7 @@ router.get("/pending", async (req, res) => {
     res.status(200).json({
       success: true,
       orders: ordersData,
+      message: orders.length === 0 ? "No pending orders found" : undefined,
     });
   } catch (error) {
     console.error("Error fetching pending orders:", error);
