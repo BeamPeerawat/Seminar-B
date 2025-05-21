@@ -73,7 +73,8 @@ router.post("/", async (req, res) => {
     }
 
     const orderData = order.toObject();
-    orderData.createdAt = new Date(orderData.createdAt).toLocaleString();
+    // ส่ง createdAt เป็น ISO string
+    orderData.createdAt = orderData.createdAt.toISOString();
 
     const responseData = {
       success: true,
@@ -112,7 +113,8 @@ router.get("/:orderNumber", async (req, res) => {
     }
 
     const orderData = order.toObject();
-    orderData.createdAt = new Date(orderData.createdAt).toLocaleString();
+    // ส่ง createdAt เป็น ISO string
+    orderData.createdAt = orderData.createdAt.toISOString();
 
     res.status(200).json({
       success: true,
@@ -151,10 +153,8 @@ router.get("/", async (req, res) => {
 
     const ordersData = orders.map((order) => {
       const orderData = order.toObject();
-      orderData.createdAt = new Date(orderData.createdAt).toLocaleString("th-TH", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
+      // ส่ง createdAt เป็น ISO string
+      orderData.createdAt = orderData.createdAt.toISOString();
       return orderData;
     });
 
@@ -195,10 +195,7 @@ router.get("/pending", async (req, res) => {
     const ordersData = orders.map((order) => ({
       _id: order._id,
       orderNumber: order.orderNumber,
-      createdAt: new Date(order.createdAt).toLocaleString("th-TH", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }),
+      createdAt: order.createdAt.toISOString(),
     }));
 
     res.status(200).json({
@@ -276,7 +273,10 @@ router.put("/:orderNumber/status", async (req, res) => {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
 
-    res.status(200).json({ success: true, order });
+    const orderData = order.toObject();
+    orderData.createdAt = orderData.createdAt.toISOString();
+
+    res.status(200).json({ success: true, order: orderData });
   } catch (error) {
     console.error("Error updating order status:", error);
     res.status(500).json({ success: false, error: error.message });
