@@ -1,5 +1,3 @@
-// models/Visitor.js
-
 import mongoose from "mongoose";
 
 const visitorSchema = new mongoose.Schema({

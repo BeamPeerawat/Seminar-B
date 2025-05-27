@@ -28,10 +28,18 @@ router.post("/", async (req, res) => {
     const { items, total, customer, paymentMethod } = req.body;
     const userId = req.user.userId;
 
-    console.log("Received order data:", { items, total, customer, paymentMethod, userId });
+    console.log("Received order data:", {
+      items,
+      total,
+      customer,
+      paymentMethod,
+      userId,
+    });
 
     if (!userId) {
-      return res.status(401).json({ success: false, error: "Unauthorized: No user logged in" });
+      return res
+        .status(401)
+        .json({ success: false, error: "Unauthorized: No user logged in" });
     }
 
     const user = await User.findOne({ userId });
@@ -43,10 +51,17 @@ router.post("/", async (req, res) => {
     for (const item of items) {
       const product = await Product.findOne({ productId: item.productId });
       if (!product) {
-        return res.status(404).json({ success: false, error: `Product ${item.name} not found` });
+        return res
+          .status(404)
+          .json({ success: false, error: `Product ${item.name} not found` });
       }
       if (product.stock < item.quantity) {
-        return res.status(400).json({ success: false, error: `Insufficient stock for ${item.name}` });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: `Insufficient stock for ${item.name}`,
+          });
       }
       product.stock -= item.quantity;
       await product.save();
@@ -105,7 +120,10 @@ router.get("/:orderNumber", async (req, res) => {
     }
 
     // ถ้าเป็นแอดมิน สามารถดูออเดอร์ใดก็ได้
-    const query = user.role === "admin" ? { orderNumber: Number(orderNumber) } : { orderNumber: Number(orderNumber), userId };
+    const query =
+      user.role === "admin"
+        ? { orderNumber: Number(orderNumber) }
+        : { orderNumber: Number(orderNumber), userId };
 
     const order = await Order.findOne(query);
     if (!order) {
@@ -186,10 +204,14 @@ router.get("/pending", async (req, res) => {
 
     if (user.role !== "admin") {
       console.log(`Access denied: User ${userId} is not admin`);
-      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+      return res
+        .status(403)
+        .json({ success: false, error: "Access denied: Admin only" });
     }
 
-    const orders = await Order.find({ status: "pending" }).sort({ createdAt: -1 });
+    const orders = await Order.find({ status: "pending" }).sort({
+      createdAt: -1,
+    });
     console.log(`Found ${orders.length} pending orders`);
 
     const ordersData = orders.map((order) => ({
@@ -220,16 +242,26 @@ router.post("/upload-slip", async (req, res) => {
     const userId = req.user.userId;
 
     if (!orderNumber || !slipUrl) {
-      return res.status(400).json({ success: false, error: "Missing orderNumber or slipUrl" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing orderNumber or slipUrl" });
     }
 
     // ตรวจสอบว่า slipUrl เป็น URL ที่ถูกต้องและมาจาก Cloudinary
     const cloudinaryUrlPattern = /^https:\/\/res\.cloudinary\.com\/debhfdjki\//;
     if (!cloudinaryUrlPattern.test(slipUrl)) {
-      return res.status(400).json({ success: false, error: "Invalid slipUrl: Must be a valid Cloudinary URL" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Invalid slipUrl: Must be a valid Cloudinary URL",
+        });
     }
 
-    const order = await Order.findOne({ orderNumber: Number(orderNumber), userId });
+    const order = await Order.findOne({
+      orderNumber: Number(orderNumber),
+      userId,
+    });
     if (!order) {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
@@ -239,7 +271,9 @@ router.post("/upload-slip", async (req, res) => {
     order.updatedAt = Date.now();
     await order.save();
 
-    res.status(200).json({ success: true, message: "Slip uploaded successfully", slipUrl });
+    res
+      .status(200)
+      .json({ success: true, message: "Slip uploaded successfully", slipUrl });
   } catch (error) {
     console.error("Error uploading slip:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -255,10 +289,19 @@ router.put("/:orderNumber/status", async (req, res) => {
 
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
-      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+      return res
+        .status(403)
+        .json({ success: false, error: "Access denied: Admin only" });
     }
 
-    const validStatuses = ["pending", "awaiting_verification", "confirmed", "ready_to_ship", "delivered", "cancelled"];
+    const validStatuses = [
+      "pending",
+      "awaiting_verification",
+      "confirmed",
+      "ready_to_ship",
+      "delivered",
+      "cancelled",
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: "Invalid status" });
     }

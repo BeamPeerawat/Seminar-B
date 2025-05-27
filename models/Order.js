@@ -21,7 +21,14 @@ const orderSchema = new mongoose.Schema({
   paymentMethod: { type: String, required: true },
   status: {
     type: String,
-    enum: ["pending", "awaiting_verification", "confirmed", "ready_to_ship", "delivered", "cancelled"],
+    enum: [
+      "pending",
+      "awaiting_verification",
+      "confirmed",
+      "ready_to_ship",
+      "delivered",
+      "cancelled",
+    ],
     default: "pending",
   },
   slipUrl: { type: String }, // เปลี่ยนจาก slipPath เป็น slipUrl

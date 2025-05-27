@@ -18,7 +18,9 @@ router.post("/add", async (req, res) => {
     const imageFile = req.files?.image;
 
     if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
+      return res
+        .status(400)
+        .json({ message: "Title and description are required" });
     }
 
     let imageUrl = "";
@@ -30,7 +32,8 @@ router.post("/add", async (req, res) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: "projects" },
           (error, result) => {
-            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            if (error)
+              reject(new Error("Cloudinary upload failed: " + error.message));
             resolve(result);
           }
         );
@@ -44,7 +47,9 @@ router.post("/add", async (req, res) => {
     res.status(201).json(newProject);
   } catch (error) {
     console.error("Error adding project:", error.message);
-    res.status(500).json({ message: "Error adding project", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error adding project", error: error.message });
   }
 });
 
@@ -55,7 +60,9 @@ router.get("/", async (req, res) => {
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching projects:", error.message);
-    res.status(500).json({ message: "Error fetching projects", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching projects", error: error.message });
   }
 });
 
@@ -66,7 +73,9 @@ router.put("/:id", async (req, res) => {
     const imageFile = req.files?.image;
 
     if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
+      return res
+        .status(400)
+        .json({ message: "Title and description are required" });
     }
 
     const project = await Project.findById(req.params.id);
@@ -90,7 +99,8 @@ router.put("/:id", async (req, res) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: "projects" },
           (error, result) => {
-            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            if (error)
+              reject(new Error("Cloudinary upload failed: " + error.message));
             resolve(result);
           }
         );
@@ -103,7 +113,9 @@ router.put("/:id", async (req, res) => {
     res.status(200).json(project);
   } catch (error) {
     console.error("Error updating project:", error.message);
-    res.status(500).json({ message: "Error updating project", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating project", error: error.message });
   }
 });
 
@@ -124,7 +136,9 @@ router.delete("/:id", async (req, res) => {
     res.status(200).json({ message: "Project deleted successfully" });
   } catch (error) {
     console.error("Error deleting project:", error.message);
-    res.status(500).json({ message: "Error deleting project", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting project", error: error.message });
   }
 });
 

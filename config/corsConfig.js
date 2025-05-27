@@ -1,12 +1,20 @@
-// config/corsConfig.js
-
+// กำหนดตัวเลือก (Options) สำหรับการตั้งค่า CORS (Cross-Origin Resource Sharing)
 export const corsOptions = {
+  // กำหนดแหล่งที่สามารถเข้าถึง API นี้ได้ (Allowlist)
   origin: [
-    'https://seminar-f.vercel.app', // อนุญาตเฉพาะ Frontend บน Vercel
-    'http://localhost:3000', // อนุญาตสำหรับการพัฒนาท้องถิ่น
+    "https://seminar-f.vercel.app", // เว็บไซต์ที่ Deploy จริง
+    "http://localhost:3000",        // สำหรับใช้ตอนพัฒนาในเครื่อง
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // อนุญาตทุกวิธีการที่อาจใช้ รวมถึง OPTIONS สำหรับ preflight
-  allowedHeaders: ['Content-Type', 'Authorization'], // อนุญาต headers ที่ Frontend อาจส่งมา
-  credentials: true, // อนุญาตการส่ง cookies, authorization headers, หรือ credentials อื่นๆ (ถ้าจำเป็น)
-  optionSuccessStatus: 200, // บางเบราว์เซอร์ (เช่น Safari) ต้องการสถานะ 200 สำหรับ preflight
+
+  // กำหนด HTTP methods ที่อนุญาตให้เรียกใช้ API ได้
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+  // กำหนด headers ที่สามารถส่งมาได้จากฝั่ง client
+  allowedHeaders: ["Content-Type", "Authorization"],
+
+  // อนุญาตให้มีการส่ง cookie หรือ credential อื่น ๆ เช่น token มาพร้อมกับ request
+  credentials: true,
+
+  // กำหนดให้ response กลับมาสำเร็จด้วย status 200 สำหรับ preflight request (OPTIONS)
+  optionSuccessStatus: 200,
 };

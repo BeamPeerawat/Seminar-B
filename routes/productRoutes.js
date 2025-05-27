@@ -32,7 +32,9 @@ router.get("/", async (req, res) => {
 
     const products = await Product.find({ serviceId });
     if (!products.length) {
-      return res.status(404).json({ message: "No products found for this service" });
+      return res
+        .status(404)
+        .json({ message: "No products found for this service" });
     }
 
     res.json(
@@ -44,7 +46,9 @@ router.get("/", async (req, res) => {
     );
   } catch (error) {
     console.error("Error fetching products:", error.message);
-    res.status(500).json({ error: "Failed to fetch products", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch products", details: error.message });
   }
 });
 
@@ -65,7 +69,9 @@ router.get("/:productId", async (req, res) => {
     res.json(productWithService);
   } catch (error) {
     console.error("Error fetching product:", error.message);
-    res.status(500).json({ error: "Failed to fetch product", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch product", details: error.message });
   }
 });
 
@@ -98,7 +104,8 @@ router.post("/", async (req, res) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: "products" },
           (error, result) => {
-            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            if (error)
+              reject(new Error("Cloudinary upload failed: " + error.message));
             resolve(result);
           }
         );
@@ -107,14 +114,14 @@ router.post("/", async (req, res) => {
       imageUrl = result.secure_url;
     }
 
-    const product = new Product({ 
-      productId: Number(productId), 
-      name, 
-      price: Number(price), 
-      stock: Number(stock), 
-      details, 
-      image: imageUrl, 
-      serviceId 
+    const product = new Product({
+      productId: Number(productId),
+      name,
+      price: Number(price),
+      stock: Number(stock),
+      details,
+      image: imageUrl,
+      serviceId,
     });
     await product.save();
 
@@ -124,7 +131,9 @@ router.post("/", async (req, res) => {
     res.status(201).json({ message: "Product added successfully", product });
   } catch (error) {
     console.error("Error adding product:", error.message);
-    res.status(500).json({ error: "Failed to add product", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to add product", details: error.message });
   }
 });
 
@@ -155,7 +164,8 @@ router.put("/:productId", async (req, res) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: "products" },
           (error, result) => {
-            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            if (error)
+              reject(new Error("Cloudinary upload failed: " + error.message));
             resolve(result);
           }
         );
@@ -169,7 +179,9 @@ router.put("/:productId", async (req, res) => {
     if (serviceId && serviceId !== oldServiceId) {
       const oldService = await Service.findOne({ serviceId: oldServiceId });
       if (oldService) {
-        oldService.productIds = oldService.productIds.filter((id) => id !== Number(productId));
+        oldService.productIds = oldService.productIds.filter(
+          (id) => id !== Number(productId)
+        );
         await oldService.save();
       }
       const newService = await Service.findOne({ serviceId });
@@ -182,7 +194,9 @@ router.put("/:productId", async (req, res) => {
     res.json({ message: "Product updated successfully", product });
   } catch (error) {
     console.error("Error updating product:", error.message);
-    res.status(500).json({ error: "Failed to update product", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to update product", details: error.message });
   }
 });
 
@@ -197,7 +211,9 @@ router.delete("/:productId", async (req, res) => {
 
     const service = await Service.findOne({ serviceId: product.serviceId });
     if (service) {
-      service.productIds = service.productIds.filter((id) => id !== Number(productId));
+      service.productIds = service.productIds.filter(
+        (id) => id !== Number(productId)
+      );
       await service.save();
     }
 
@@ -210,7 +226,9 @@ router.delete("/:productId", async (req, res) => {
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error("Error deleting product:", error.message);
-    res.status(500).json({ error: "Failed to delete product", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to delete product", details: error.message });
   }
 });
 
@@ -222,13 +240,16 @@ router.get("/stock", async (req, res) => {
       return res.status(404).json({ message: "No products found" });
     }
     const stockMap = stock.reduce((acc, product) => {
-      acc[product.productId] = typeof product.stock === "number" ? product.stock : 0;
+      acc[product.productId] =
+        typeof product.stock === "number" ? product.stock : 0;
       return acc;
     }, {});
     res.json(stockMap);
   } catch (error) {
     console.error("Error fetching stock:", error.message);
-    res.status(500).json({ error: "Failed to fetch stock", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch stock", details: error.message });
   }
 });
 
@@ -245,7 +266,9 @@ router.post("/stock", async (req, res) => {
     res.json({ message: "Stock updated successfully", product });
   } catch (error) {
     console.error("Error updating stock:", error.message);
-    res.status(500).json({ error: "Failed to update stock", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to update stock", details: error.message });
   }
 });
 
@@ -253,7 +276,7 @@ router.post("/stock", async (req, res) => {
 router.post("/check-stock", async (req, res) => {
   try {
     const { items } = req.body;
-    
+
     if (!items || !Array.isArray(items)) {
       return res.status(400).json({ error: "Invalid items data" });
     }
@@ -267,7 +290,7 @@ router.post("/check-stock", async (req, res) => {
             name: "Unknown",
             availableStock: 0,
             requestedQuantity: item.quantity || 1,
-            sufficient: false
+            sufficient: false,
           };
         }
         return {
@@ -275,25 +298,27 @@ router.post("/check-stock", async (req, res) => {
           name: product.name,
           availableStock: product.stock,
           requestedQuantity: item.quantity || 1,
-          sufficient: product.stock >= (item.quantity || 1)
+          sufficient: product.stock >= (item.quantity || 1),
         };
       })
     );
 
-    const insufficientItems = stockResults.filter(item => !item.sufficient);
+    const insufficientItems = stockResults.filter((item) => !item.sufficient);
 
     if (insufficientItems.length > 0) {
       return res.status(400).json({
         error: "Insufficient stock",
         insufficientItems,
-        allItems: stockResults
+        allItems: stockResults,
       });
     }
 
     res.json({ success: true, items: stockResults });
   } catch (error) {
     console.error("Error checking stock:", error.message);
-    res.status(500).json({ error: "Failed to check stock", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to check stock", details: error.message });
   }
 });
 
@@ -313,13 +338,22 @@ router.post("/seed", async (req, res) => {
 
     for (const [serviceId, service] of Object.entries(services)) {
       if (!service.products || !Array.isArray(service.products)) {
-        return res.status(400).json({ error: `Invalid products for service ${serviceId}` });
+        return res
+          .status(400)
+          .json({ error: `Invalid products for service ${serviceId}` });
       }
 
       const productIds = [];
       service.products.forEach((product) => {
-        if (!product.id || !product.name || !product.price || !product.serviceId) {
-          throw new Error(`Missing required fields in product: ${JSON.stringify(product)}`);
+        if (
+          !product.id ||
+          !product.name ||
+          !product.price ||
+          !product.serviceId
+        ) {
+          throw new Error(
+            `Missing required fields in product: ${JSON.stringify(product)}`
+          );
         }
         products.push({
           productId: product.id,
@@ -343,14 +377,16 @@ router.post("/seed", async (req, res) => {
     await Service.insertMany(serviceData);
     await Product.insertMany(products);
 
-    res.status(201).json({ 
-      message: "Data seeded successfully", 
-      productCount: products.length, 
-      serviceCount: serviceData.length 
+    res.status(201).json({
+      message: "Data seeded successfully",
+      productCount: products.length,
+      serviceCount: serviceData.length,
     });
   } catch (error) {
     console.error("Error seeding data:", error.message);
-    res.status(500).json({ error: "Failed to seed data", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to seed data", details: error.message });
   }
 });
 

@@ -17,7 +17,9 @@ router.get("/", async (req, res) => {
     res.json(cart.items || []);
   } catch (error) {
     console.error("Error fetching cart:", error.message);
-    res.status(500).json({ error: "Failed to fetch cart", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch cart", details: error.message });
   }
 });
 
@@ -38,7 +40,9 @@ router.post("/", async (req, res) => {
     res.status(200).json({ message: "Cart updated successfully" });
   } catch (error) {
     console.error("Error saving cart:", error.message);
-    res.status(500).json({ error: "Failed to save cart", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to save cart", details: error.message });
   }
 });
 

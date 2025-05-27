@@ -1,9 +1,8 @@
 import axios from "axios";
-import Profile from "../models/Profile.js"; // นำเข้า Model Profile
-import User from "../models/User.js"; // นำเข้า User model
-import logger from "../utils/logger.js"; // เพิ่มบรรทัดนี้
+import Profile from "../models/Profile.js";
+import User from "../models/User.js";
+import logger from "../utils/logger.js";
 
-// ดึงข้อมูลโปรไฟล์จาก LINE (ไม่เปลี่ยนแปลง)
 export const getProfile = async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -37,17 +36,18 @@ export const getProfile = async (req, res) => {
   }
 };
 
-// ตรวจสอบโปรไฟล์ว่ากรอกข้อมูลแล้วหรือยัง
 export const checkProfile = async (req, res) => {
-  const { email, userId } = req.body; // ใช้ userId เป็นหลัก
+  const { email, userId } = req.body;
 
   try {
-    logger.debug("Request body for checkProfile:", req.body); // Logging request body
-    const user = await User.findOne({ userId }); // ใช้ User model เพื่อหา userId
+    logger.debug("Request body for checkProfile:", req.body);
+    const user = await User.findOne({ userId });
 
     if (user) {
       const profile = await Profile.findOne({ userId });
-      return res.json({ profileCompleted: profile ? profile.profileCompleted : false });
+      return res.json({
+        profileCompleted: profile ? profile.profileCompleted : false,
+      });
     } else {
       return res.json({ profileCompleted: false });
     }
@@ -57,7 +57,6 @@ export const checkProfile = async (req, res) => {
   }
 };
 
-// บันทึกข้อมูลโปรไฟล์ (ใช้ Profile model กับ userId เป็น String)
 export const saveProfile = async (req, res) => {
   try {
     const { name, address, phone, email, userId } = req.body;
@@ -71,36 +70,31 @@ export const saveProfile = async (req, res) => {
 
     logger.debug("Save profile request body:", req.body);
 
-    // ตรวจสอบว่ามีโปรไฟล์ของ userId นี้ในฐานข้อมูล Profile หรือไม่
     let profile = await Profile.findOne({ userId });
 
     if (!profile) {
-      // ถ้ายังไม่มีโปรไฟล์ให้สร้างใหม่ใน Profile model
       profile = new Profile({
-        userId, // ใช้ userId เป็น String
+        userId,
         name,
         address,
         phone,
-        email: email || null, // อนุญาตให้ email เป็น null
-        profileCompleted: true, // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
+        email: email || null,
+        profileCompleted: true,
       });
     } else {
-      // ถ้ามีโปรไฟล์แล้วให้ทำการอัปเดต
       profile.name = name;
       profile.address = address;
       profile.phone = phone;
-      profile.email = email || null; // อนุญาตให้ email เป็น null
-      profile.profileCompleted = true; // ตั้งค่าเป็น true หลังจากบันทึกข้อมูลครบ
+      profile.email = email || null;
+      profile.profileCompleted = true;
     }
 
-    // บันทึกโปรไฟล์ในฐานข้อมูล Profile
     await profile.save();
     logger.info("Profile saved or updated:", profile);
 
-    // อัปเดตสถานะใน User model
     const user = await User.findOne({ userId });
     if (user) {
-      user.profileCompleted = true; // อัปเดต profileCompleted ใน User
+      user.profileCompleted = true;
       user.updatedAt = Date.now();
       await user.save();
     }
@@ -120,14 +114,13 @@ export const saveProfile = async (req, res) => {
   }
 };
 
-// อัปเดตสถานะ profileCompleted (ใช้ Profile model กับ userId เป็น String)
 export const updateProfileCompleted = async (req, res) => {
   const { userId, profileCompleted } = req.body;
 
   try {
     const profile = await Profile.findOneAndUpdate(
-      { userId }, // ใช้ userId เป็น String
-      { profileCompleted, updatedAt: Date.now() }, // อัปเดต timestamp ด้วย
+      { userId },
+      { profileCompleted, updatedAt: Date.now() },
       { new: true, runValidators: true }
     );
 
@@ -135,7 +128,6 @@ export const updateProfileCompleted = async (req, res) => {
       return res.status(404).json({ error: "Profile not found" });
     }
 
-    // อัปเดตสถานะใน User model ด้วย
     const user = await User.findOne({ userId });
     if (user) {
       user.profileCompleted = profileCompleted;
@@ -150,29 +142,27 @@ export const updateProfileCompleted = async (req, res) => {
   }
 };
 
-// ดึงข้อมูลโปรไฟล์จากฐานข้อมูล (ใช้ Profile model กับ userId เป็น String)
 export const getProfileFromDB = async (req, res) => {
-  const { userId } = req.body; // รับ userId จาก body
+  const { userId } = req.body;
 
   if (!userId) {
     return res.status(400).json({ message: "Missing userId" });
   }
 
   try {
-    // ค้นหาข้อมูลโปรไฟล์จาก Profile model ด้วย userId
-    const profile = await Profile.findOne({ userId }); // ใช้ userId เป็น String
+    const profile = await Profile.findOne({ userId });
 
     if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    // ส่งข้อมูลโปรไฟล์กลับไป
     res.json({
       name: profile.name,
       address: profile.address,
       phone: profile.phone,
       email: profile.email,
       profileCompleted: profile.profileCompleted,
+      addresses: profile.addresses || [], // ส่ง array ที่อยู่กลับไป
     });
   } catch (error) {
     logger.error("Error fetching profile from database:", error.message);
@@ -180,5 +170,130 @@ export const getProfileFromDB = async (req, res) => {
       message: "Failed to fetch profile from database",
       error: error.message,
     });
+  }
+};
+
+// เพิ่มที่อยู่ใหม่
+export const addAddress = async (req, res) => {
+  const { userId, name, address, phone, isDefault } = req.body;
+
+  if (!userId || !name || !address || !phone) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  try {
+    let profile = await Profile.findOne({ userId });
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    // ถ้าตั้งเป็นที่อยู่เริ่มต้น ให้ยกเลิกที่อยู่เริ่มต้นอันเก่า
+    if (isDefault) {
+      profile.addresses.forEach((addr) => (addr.isDefault = false));
+    }
+
+    profile.addresses.push({
+      name,
+      address,
+      phone,
+      isDefault: isDefault || false,
+      createdAt: Date.now(),
+    });
+
+    await profile.save();
+    res.status(200).json({ message: "Address added successfully", profile });
+  } catch (error) {
+    logger.error("Error adding address:", error);
+    res.status(500).json({ message: "Failed to add address" });
+  }
+};
+
+// ดึงรายการที่อยู่ทั้งหมด
+export const getAddresses = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ message: "Missing userId" });
+  }
+
+  try {
+    const profile = await Profile.findOne({ userId });
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    res.status(200).json({ addresses: profile.addresses || [] });
+  } catch (error) {
+    logger.error("Error fetching addresses:", error);
+    res.status(500).json({ message: "Failed to fetch addresses" });
+  }
+};
+
+// อัปเดตที่อยู่
+export const updateAddress = async (req, res) => {
+  const { userId, name, address, phone, isDefault } = req.body;
+  const { addressId } = req.params;
+
+  if (!userId || !addressId || !name || !address || !phone) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  try {
+    let profile = await Profile.findOne({ userId });
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    const addr = profile.addresses.id(addressId);
+    if (!addr) {
+      return res.status(404).json({ message: "Address not found" });
+    }
+
+    // อัปเดตข้อมูลที่อยู่
+    addr.name = name;
+    addr.address = address;
+    addr.phone = phone;
+
+    // ถ้าตั้งเป็นที่อยู่เริ่มต้น ให้ยกเลิกที่อยู่เริ่มต้นอันเก่า
+    if (isDefault) {
+      profile.addresses.forEach((a) => (a.isDefault = false));
+      addr.isDefault = true;
+    }
+
+    await profile.save();
+    res.status(200).json({ message: "Address updated successfully", profile });
+  } catch (error) {
+    logger.error("Error updating address:", error);
+    res.status(500).json({ message: "Failed to update address" });
+  }
+};
+
+// ลบที่อยู่
+export const deleteAddress = async (req, res) => {
+  const { userId } = req.body;
+  const { addressId } = req.params;
+
+  if (!userId || !addressId) {
+    return res.status(400).json({ message: "Missing userId or addressId" });
+  }
+
+  try {
+    let profile = await Profile.findOne({ userId });
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    const addr = profile.addresses.id(addressId);
+    if (!addr) {
+      return res.status(404).json({ message: "Address not found" });
+    }
+
+    profile.addresses.pull(addressId);
+    await profile.save();
+    res.status(200).json({ message: "Address deleted successfully", profile });
+  } catch (error) {
+    logger.error("Error deleting address:", error);
+    res.status(500).json({ message: "Failed to delete address" });
   }
 };

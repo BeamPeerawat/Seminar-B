@@ -18,7 +18,9 @@ router.post("/add", async (req, res) => {
     const imageFile = req.files?.image;
 
     if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
+      return res
+        .status(400)
+        .json({ message: "Title and description are required" });
     }
 
     let imageUrl = "";
@@ -30,7 +32,8 @@ router.post("/add", async (req, res) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: "blogs" },
           (error, result) => {
-            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            if (error)
+              reject(new Error("Cloudinary upload failed: " + error.message));
             resolve(result);
           }
         );
@@ -44,7 +47,9 @@ router.post("/add", async (req, res) => {
     res.status(201).json(newBlog);
   } catch (error) {
     console.error("Error adding blog:", error.message);
-    res.status(500).json({ message: "Error adding blog", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error adding blog", error: error.message });
   }
 });
 
@@ -55,7 +60,9 @@ router.get("/", async (req, res) => {
     res.status(200).json(blogs);
   } catch (error) {
     console.error("Error fetching blogs:", error.message);
-    res.status(500).json({ message: "Error fetching blogs", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching blogs", error: error.message });
   }
 });
 
@@ -69,7 +76,9 @@ router.get("/:id", async (req, res) => {
     res.status(200).json(blog);
   } catch (error) {
     console.error("Error fetching blog:", error.message);
-    res.status(500).json({ message: "Error fetching blog", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching blog", error: error.message });
   }
 });
 
@@ -80,7 +89,9 @@ router.put("/:id", async (req, res) => {
     const imageFile = req.files?.image;
 
     if (!title || !description) {
-      return res.status(400).json({ message: "Title and description are required" });
+      return res
+        .status(400)
+        .json({ message: "Title and description are required" });
     }
 
     const blog = await Blog.findById(req.params.id);
@@ -104,7 +115,8 @@ router.put("/:id", async (req, res) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           { folder: "blogs" },
           (error, result) => {
-            if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+            if (error)
+              reject(new Error("Cloudinary upload failed: " + error.message));
             resolve(result);
           }
         );
@@ -117,7 +129,9 @@ router.put("/:id", async (req, res) => {
     res.status(200).json(blog);
   } catch (error) {
     console.error("Error updating blog:", error.message);
-    res.status(500).json({ message: "Error updating blog", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating blog", error: error.message });
   }
 });
 
@@ -138,7 +152,9 @@ router.delete("/:id", async (req, res) => {
     res.status(200).json({ message: "Blog deleted successfully" });
   } catch (error) {
     console.error("Error deleting blog:", error.message);
-    res.status(500).json({ message: "Error deleting blog", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting blog", error: error.message });
   }
 });
 

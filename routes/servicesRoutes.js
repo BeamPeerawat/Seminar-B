@@ -20,7 +20,9 @@ router.get("/", async (req, res) => {
     res.json(serviceList);
   } catch (error) {
     console.error("Error fetching services:", error.message);
-    res.status(500).json({ error: "Failed to fetch services", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch services", details: error.message });
   }
 });
 
