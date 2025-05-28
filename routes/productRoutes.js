@@ -15,40 +15,43 @@ const router = express.Router();
 // ดึงข้อมูลสินค้าทั้งหมดหรือตาม serviceId
 router.get("/", async (req, res) => {
   try {
-    const { serviceId } = req.query;
+    const { serviceId, search } = req.query;
     if (!serviceId) {
       return res.status(400).json({ error: "serviceId is required" });
     }
 
-    if (serviceId === "all") {
-      const products = await Product.find();
-      return res.json(products);
+    let query = {};
+    if (serviceId !== "all") {
+      const service = await Service.findOne({ serviceId });
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      query.serviceId = serviceId;
+    }
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
     }
 
-    const service = await Service.findOne({ serviceId });
-    if (!service) {
-      return res.status(404).json({ message: "Service not found" });
+    const products = await Product.find(query);
+    if (!products.length && serviceId !== "all") {
+      return res.status(404).json({ message: "No products found for this service" });
     }
 
-    const products = await Product.find({ serviceId });
-    if (!products.length) {
-      return res
-        .status(404)
-        .json({ message: "No products found for this service" });
-    }
-
-    res.json(
-      products.map((p) => ({
-        ...p.toObject(),
-        serviceId,
-        serviceTitle: service.title,
-      }))
+    const response = await Promise.all(
+      products.map(async (p) => {
+        const service = await Service.findOne({ serviceId: p.serviceId });
+        return {
+          ...p.toObject(),
+          serviceId: p.serviceId,
+          serviceTitle: service?.title || "Unknown",
+        };
+      })
     );
+
+    res.json(response);
   } catch (error) {
     console.error("Error fetching products:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to fetch products", details: error.message });
+    res.status(500).json({ error: "Failed to fetch products", details: error.message });
   }
 });
 
@@ -69,9 +72,7 @@ router.get("/:productId", async (req, res) => {
     res.json(productWithService);
   } catch (error) {
     console.error("Error fetching product:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to fetch product", details: error.message });
+    res.status(500).json({ error: "Failed to fetch product", details: error.message });
   }
 });
 
@@ -79,7 +80,7 @@ router.get("/:productId", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { productId, name, price, stock, details, serviceId } = req.body;
-    const imageFile = req.files?.image;
+    const imageFiles = req.files?.images;
 
     if (!productId || !name || !price || !stock || !details || !serviceId) {
       return res.status(400).json({ error: "All fields are required" });
@@ -95,23 +96,26 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Product ID already exists" });
     }
 
-    let imageUrl = "";
-    if (imageFile) {
-      if (!imageFile.mimetype.startsWith("image/")) {
-        return res.status(400).json({ error: "File must be an image" });
-      }
-      const result = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: "products" },
-          (error, result) => {
-            if (error)
-              reject(new Error("Cloudinary upload failed: " + error.message));
-            resolve(result);
+    let imageUrls = [];
+    if (imageFiles) {
+      const files = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
+      imageUrls = await Promise.all(
+        files.map(async (file) => {
+          if (!file.mimetype.startsWith("image/")) {
+            throw new Error("File must be an image");
           }
-        );
-        uploadStream.end(imageFile.data);
-      });
-      imageUrl = result.secure_url;
+          return await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              { folder: "products" },
+              (error, result) => {
+                if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+                resolve(result.secure_url);
+              }
+            );
+            uploadStream.end(file.data);
+          });
+        })
+      );
     }
 
     const product = new Product({
@@ -120,7 +124,7 @@ router.post("/", async (req, res) => {
       price: Number(price),
       stock: Number(stock),
       details,
-      image: imageUrl,
+      images: imageUrls, // เก็บ array ของ URLs
       serviceId,
     });
     await product.save();
@@ -131,9 +135,7 @@ router.post("/", async (req, res) => {
     res.status(201).json({ message: "Product added successfully", product });
   } catch (error) {
     console.error("Error adding product:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to add product", details: error.message });
+    res.status(500).json({ error: "Failed to add product", details: error.message });
   }
 });
 
@@ -142,7 +144,7 @@ router.put("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
     const { name, price, stock, details, serviceId } = req.body;
-    const imageFile = req.files?.image;
+    const imageFiles = req.files?.images;
 
     const product = await Product.findOne({ productId: Number(productId) });
     if (!product) {
@@ -156,22 +158,35 @@ router.put("/:productId", async (req, res) => {
     product.details = details || product.details;
     product.serviceId = serviceId || product.serviceId;
 
-    if (imageFile) {
-      if (!imageFile.mimetype.startsWith("image/")) {
-        return res.status(400).json({ error: "File must be an image" });
-      }
-      const result = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: "products" },
-          (error, result) => {
-            if (error)
-              reject(new Error("Cloudinary upload failed: " + error.message));
-            resolve(result);
+    if (imageFiles) {
+      const files = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
+      const newImageUrls = await Promise.all(
+        files.map(async (file) => {
+          if (!file.mimetype.startsWith("image/")) {
+            throw new Error("File must be an image");
           }
+          return await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              { folder: "products" },
+              (error, result) => {
+                if (error) reject(new Error("Cloudinary upload failed: " + error.message));
+                resolve(result.secure_url);
+              }
+            );
+            uploadStream.end(file.data);
+          });
+        })
+      );
+      // ลบรูปภาพเก่าจาก Cloudinary
+      if (product.images && product.images.length > 0) {
+        await Promise.all(
+          product.images.map(async (url) => {
+            const publicId = url.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`products/${publicId}`);
+          })
         );
-        uploadStream.end(imageFile.data);
-      });
-      product.image = result.secure_url;
+      }
+      product.images = newImageUrls; // อัปเดตด้วยรูปใหม่
     }
 
     await product.save();
@@ -194,9 +209,7 @@ router.put("/:productId", async (req, res) => {
     res.json({ message: "Product updated successfully", product });
   } catch (error) {
     console.error("Error updating product:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to update product", details: error.message });
+    res.status(500).json({ error: "Failed to update product", details: error.message });
   }
 });
 
@@ -217,18 +230,21 @@ router.delete("/:productId", async (req, res) => {
       await service.save();
     }
 
-    if (product.image) {
-      const publicId = product.image.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(`products/${publicId}`);
+    // ลบรูปภาพทั้งหมดจาก Cloudinary
+    if (product.images && product.images.length > 0) {
+      await Promise.all(
+        product.images.map(async (url) => {
+          const publicId = url.split("/").pop().split(".")[0];
+          await cloudinary.uploader.destroy(`products/${publicId}`);
+        })
+      );
     }
 
     await Product.deleteOne({ productId: Number(productId) });
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error("Error deleting product:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to delete product", details: error.message });
+    res.status(500).json({ error: "Failed to delete product", details: error.message });
   }
 });
 
@@ -247,9 +263,7 @@ router.get("/stock", async (req, res) => {
     res.json(stockMap);
   } catch (error) {
     console.error("Error fetching stock:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to fetch stock", details: error.message });
+    res.status(500).json({ error: "Failed to fetch stock", details: error.message });
   }
 });
 
@@ -266,9 +280,7 @@ router.post("/stock", async (req, res) => {
     res.json({ message: "Stock updated successfully", product });
   } catch (error) {
     console.error("Error updating stock:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to update stock", details: error.message });
+    res.status(500).json({ error: "Failed to update stock", details: error.message });
   }
 });
 
@@ -316,9 +328,7 @@ router.post("/check-stock", async (req, res) => {
     res.json({ success: true, items: stockResults });
   } catch (error) {
     console.error("Error checking stock:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to check stock", details: error.message });
+    res.status(500).json({ error: "Failed to check stock", details: error.message });
   }
 });
 
@@ -361,7 +371,7 @@ router.post("/seed", async (req, res) => {
           price: product.price,
           stock: product.stock || 10,
           details: product.details || "",
-          image: product.image || "",
+          images: product.images || [], // รองรับ array ของรูปภาพ
           serviceId: product.serviceId,
         });
         productIds.push(product.id);
@@ -384,9 +394,7 @@ router.post("/seed", async (req, res) => {
     });
   } catch (error) {
     console.error("Error seeding data:", error.message);
-    res
-      .status(500)
-      .json({ error: "Failed to seed data", details: error.message });
+    res.status(500).json({ error: "Failed to seed data", details: error.message });
   }
 });
 

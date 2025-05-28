@@ -8,7 +8,7 @@ const productSchema = new mongoose.Schema({
   details: { type: String, required: true },
   serviceId: { type: String, required: true },
   serviceTitle: { type: String },
-  image: { type: String }, // ฟิลด์สำหรับเก็บ URL รูปภาพ
+  images: [{ type: String }], // เปลี่ยนจาก image เป็น images (array)
 });
 
 export default mongoose.model("Product", productSchema);
