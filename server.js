@@ -18,6 +18,7 @@ import userRoutes from "./routes/userRoutes.js";
 import servicesRoutes from "./routes/servicesRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
 import fileUpload from "express-fileupload";
+import cancelExpiredOrders from "./cron/cancelExpiredOrders.js";
 
 dotenv.config();
 
@@ -54,6 +55,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/services", servicesRoutes);
 app.use("/api/cart", cartRoutes);
+
+cancelExpiredOrders();
 
 app.get("/", (req, res) => {
   res.send("Hello, World! Your backend is working correctly.");

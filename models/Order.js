@@ -31,9 +31,10 @@ const orderSchema = new mongoose.Schema({
     ],
     default: "pending",
   },
-  slipUrl: { type: String }, // เปลี่ยนจาก slipPath เป็น slipUrl
+  slipUrl: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  slipUploadDeadline: { type: Date }, // เพิ่ม deadline สำหรับแนบสลิป
 });
 
 export default mongoose.model("Order", orderSchema);

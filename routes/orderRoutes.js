@@ -9,7 +9,6 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ใช้ middleware authenticate และ authMiddleware สำหรับทุกเส้นทาง
 router.use(authenticate, authMiddleware);
 
 // ฟังก์ชันเพื่อดึงและเพิ่มเลขลำดับ
@@ -70,6 +69,10 @@ router.post("/", async (req, res) => {
     // ดึงเลขลำดับใหม่
     const orderNumber = await getNextOrderNumber();
 
+    // ตั้งค่า slipUploadDeadline = createdAt + 24 ชั่วโมง
+    const createdAt = new Date();
+    const slipUploadDeadline = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000);
+
     const order = await Order.create({
       orderNumber,
       items,
@@ -78,6 +81,8 @@ router.post("/", async (req, res) => {
       paymentMethod,
       status: "pending",
       userId,
+      createdAt,
+      slipUploadDeadline,
     });
 
     const profile = await Profile.findOne({ userId });
@@ -88,8 +93,8 @@ router.post("/", async (req, res) => {
     }
 
     const orderData = order.toObject();
-    // ส่ง createdAt เป็น ISO string
     orderData.createdAt = orderData.createdAt.toISOString();
+    orderData.slipUploadDeadline = orderData.slipUploadDeadline.toISOString();
 
     const responseData = {
       success: true,
@@ -108,134 +113,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ดึงข้อมูลคำสั่งซื้อตาม orderNumber
-router.get("/:orderNumber", async (req, res) => {
-  try {
-    const { orderNumber } = req.params;
-    const userId = req.user.userId;
-
-    const user = await User.findOne({ userId });
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    // ถ้าเป็นแอดมิน สามารถดูออเดอร์ใดก็ได้
-    const query =
-      user.role === "admin"
-        ? { orderNumber: Number(orderNumber) }
-        : { orderNumber: Number(orderNumber), userId };
-
-    const order = await Order.findOne(query);
-    if (!order) {
-      return res.status(404).json({ success: false, error: "Order not found" });
-    }
-
-    const orderData = order.toObject();
-    // ส่ง createdAt เป็น ISO string
-    orderData.createdAt = orderData.createdAt.toISOString();
-
-    res.status(200).json({
-      success: true,
-      order: orderData,
-    });
-  } catch (error) {
-    console.error("Error fetching order:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-// ดึงประวัติคำสั่งซื้อทั้งหมด
-router.get("/", async (req, res) => {
-  try {
-    const userId = req.user.userId;
-
-    const user = await User.findOne({ userId });
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    // ถ้าเป็นแอดมิน ดึงออเดอร์ทั้งหมด
-    const query = user.role === "admin" ? {} : { userId };
-
-    const orders = await Order.find(query).sort({ createdAt: -1 });
-    if (!orders || orders.length === 0) {
-      return res.status(200).json({
-        success: true,
-        orders: [],
-        message: "No orders found",
-      });
-    }
-
-    const ordersData = orders.map((order) => {
-      const orderData = order.toObject();
-      // ส่ง createdAt เป็น ISO string
-      orderData.createdAt = orderData.createdAt.toISOString();
-      return orderData;
-    });
-
-    res.status(200).json({
-      success: true,
-      orders: ordersData,
-    });
-  } catch (error) {
-    console.error("Error fetching orders:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch orders",
-      details: error.message,
-    });
-  }
-});
-
-// ดึงออเดอร์ที่รอดำเนินการ (สำหรับการแจ้งเตือนของแอดมิน)
-router.get("/pending", async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    console.log(`Fetching pending orders for userId: ${userId}`);
-
-    const user = await User.findOne({ userId });
-    if (!user) {
-      console.log(`User not found: ${userId}`);
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    if (user.role !== "admin") {
-      console.log(`Access denied: User ${userId} is not admin`);
-      return res
-        .status(403)
-        .json({ success: false, error: "Access denied: Admin only" });
-    }
-
-    const orders = await Order.find({ status: "pending" }).sort({
-      createdAt: -1,
-    });
-    console.log(`Found ${orders.length} pending orders`);
-
-    const ordersData = orders.map((order) => ({
-      _id: order._id,
-      orderNumber: order.orderNumber,
-      createdAt: order.createdAt.toISOString(),
-    }));
-
-    res.status(200).json({
-      success: true,
-      orders: ordersData,
-      message: orders.length === 0 ? "No pending orders found" : undefined,
-    });
-  } catch (error) {
-    console.error("Error fetching pending orders:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch pending orders",
-      details: error.message,
-    });
-  }
-});
-
-// อัปโหลดสลิป (รับ slipUrl จาก Frontend)
+// อัปโหลดสลิป
 router.post("/upload-slip", async (req, res) => {
   try {
     const { orderNumber, slipUrl } = req.body;
@@ -266,6 +144,24 @@ router.post("/upload-slip", async (req, res) => {
       return res.status(404).json({ success: false, error: "Order not found" });
     }
 
+    // ตรวจสอบสถานะ
+    if (order.status === "confirmed") {
+      return res
+        .status(403)
+        .json({ success: false, error: "Cannot upload slip: Order already confirmed" });
+    }
+
+    // ตรวจสอบ deadline
+    const now = new Date();
+    if (now > order.slipUploadDeadline) {
+      order.status = "cancelled";
+      order.updatedAt = Date.now();
+      await order.save();
+      return res
+        .status(403)
+        .json({ success: false, error: "Slip upload deadline has passed" });
+    }
+
     order.slipUrl = slipUrl;
     order.status = "awaiting_verification";
     order.updatedAt = Date.now();
@@ -277,6 +173,132 @@ router.post("/upload-slip", async (req, res) => {
   } catch (error) {
     console.error("Error uploading slip:", error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ดึงข้อมูลคำสั่งซื้อตาม orderNumber
+router.get("/:orderNumber", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const userId = req.user.userId;
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    const query =
+      user.role === "admin"
+        ? { orderNumber: Number(orderNumber) }
+        : { orderNumber: Number(orderNumber), userId };
+
+    const order = await Order.findOne(query);
+    if (!order) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+
+    const orderData = order.toObject();
+    orderData.createdAt = orderData.createdAt.toISOString();
+    orderData.slipUploadDeadline = orderData.slipUploadDeadline?.toISOString();
+
+    res.status(200).json({
+      success: true,
+      order: orderData,
+    });
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// ดึงประวัติคำสั่งซื้อทั้งหมด
+router.get("/", async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    const query = user.role === "admin" ? {} : { userId };
+
+    const orders = await Order.find(query).sort({ createdAt: -1 });
+    if (!orders || orders.length === 0) {
+      return res.status(200).json({
+        success: true,
+        orders: [],
+        message: "No orders found",
+      });
+    }
+
+    const ordersData = orders.map((order) => {
+      const orderData = order.toObject();
+      orderData.createdAt = orderData.createdAt.toISOString();
+      orderData.slipUploadDeadline = orderData.slipUploadDeadline?.toISOString();
+      return orderData;
+    });
+
+    res.status(200).json({
+      success: true,
+      orders: ordersData,
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch orders",
+      details: error.message,
+    });
+  }
+});
+
+// ดึงออเดอร์ที่รอดำเนินการ (สำหรับแอดมิน)
+router.get("/pending", async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    console.log(`Fetching pending orders for userId: ${userId}`);
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      console.log(`User not found: ${userId}`);
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    if (user.role !== "admin") {
+      console.log(`Access denied: User ${userId} is not admin`);
+      return res
+        .status(403)
+        .json({ success: false, error: "Access denied: Admin only" });
+    }
+
+    const orders = await Order.find({ status: "pending" }).sort({
+      createdAt: -1,
+    });
+    console.log(`Found ${orders.length} pending orders`);
+
+    const ordersData = orders.map((order) => ({
+      _id: order._id,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt.toISOString(),
+      slipUploadDeadline: order.slipUploadDeadline?.toISOString(),
+    }));
+
+    res.status(200).json({
+      success: true,
+      orders: ordersData,
+      message: orders.length === 0 ? "No pending orders found" : undefined,
+    });
+  } catch (error) {
+    console.error("Error fetching pending orders:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch pending orders",
+      details: error.message,
+    });
   }
 });
 
@@ -318,10 +340,44 @@ router.put("/:orderNumber/status", async (req, res) => {
 
     const orderData = order.toObject();
     orderData.createdAt = orderData.createdAt.toISOString();
+    orderData.slipUploadDeadline = orderData.slipUploadDeadline?.toISOString();
 
     res.status(200).json({ success: true, order: orderData });
   } catch (error) {
     console.error("Error updating order status:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint สำหรับยกเลิกออเดอร์ที่เกิน deadline (เรียกโดย cron)
+router.post("/cancel-expired", async (req, res) => {
+  try {
+    const now = new Date();
+    const expiredOrders = await Order.find({
+      status: "pending",
+      slipUrl: { $exists: false },
+      slipUploadDeadline: { $lt: now },
+    });
+
+    if (expiredOrders.length > 0) {
+      await Order.updateMany(
+        {
+          _id: { $in: expiredOrders.map((order) => order._id) },
+        },
+        {
+          status: "cancelled",
+          updatedAt: now,
+        }
+      );
+      console.log(`Cancelled ${expiredOrders.length} expired orders`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Cancelled ${expiredOrders.length} expired orders`,
+    });
+  } catch (error) {
+    console.error("Error cancelling expired orders:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
