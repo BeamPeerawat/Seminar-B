@@ -88,6 +88,7 @@ router.post("/", async (req, res) => {
     }
 
     const orderData = order.toObject();
+    // ส่ง createdAt เป็น ISO string
     orderData.createdAt = orderData.createdAt.toISOString();
 
     const responseData = {
@@ -118,6 +119,7 @@ router.get("/:orderNumber", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
+    // ถ้าเป็นแอดมิน สามารถดูออเดอร์ใดก็ได้
     const query =
       user.role === "admin"
         ? { orderNumber: Number(orderNumber) }
@@ -129,6 +131,7 @@ router.get("/:orderNumber", async (req, res) => {
     }
 
     const orderData = order.toObject();
+    // ส่ง createdAt เป็น ISO string
     orderData.createdAt = orderData.createdAt.toISOString();
 
     res.status(200).json({
@@ -154,6 +157,7 @@ router.get("/", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
+    // ถ้าเป็นแอดมิน ดึงออเดอร์ทั้งหมด
     const query = user.role === "admin" ? {} : { userId };
 
     const orders = await Order.find(query).sort({ createdAt: -1 });
@@ -167,6 +171,7 @@ router.get("/", async (req, res) => {
 
     const ordersData = orders.map((order) => {
       const orderData = order.toObject();
+      // ส่ง createdAt เป็น ISO string
       orderData.createdAt = orderData.createdAt.toISOString();
       return orderData;
     });
@@ -212,10 +217,6 @@ router.get("/pending", async (req, res) => {
     const ordersData = orders.map((order) => ({
       _id: order._id,
       orderNumber: order.orderNumber,
-      total: order.total,
-      customer: {
-        name: order.customer.name,
-      },
       createdAt: order.createdAt.toISOString(),
     }));
 
@@ -246,6 +247,7 @@ router.post("/upload-slip", async (req, res) => {
         .json({ success: false, error: "Missing orderNumber or slipUrl" });
     }
 
+    // ตรวจสอบว่า slipUrl เป็น URL ที่ถูกต้องและมาจาก Cloudinary
     const cloudinaryUrlPattern = /^https:\/\/res\.cloudinary\.com\/debhfdjki\//;
     if (!cloudinaryUrlPattern.test(slipUrl)) {
       return res
