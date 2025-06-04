@@ -123,11 +123,8 @@ router.post("/", async (req, res) => {
       name,
       price: Number(price),
       stock: Number(stock),
-      details: sanitizeHtml(details, {
-        allowedTags: ["b", "i", "u", "p", "span", "div", "br"],
-        allowedAttributes: { span: ["style"], div: ["style"] },
-      }),
-      images: imageUrls,
+      details,
+      images: imageUrls, // เก็บ array ของ URLs
       serviceId,
     });
     await product.save();
@@ -158,12 +155,7 @@ router.put("/:productId", async (req, res) => {
     product.name = name || product.name;
     product.price = price !== undefined ? Number(price) : product.price;
     product.stock = stock !== undefined ? Number(stock) : product.stock;
-    product.details = details
-      ? sanitizeHtml(details, {
-          allowedTags: ["b", "i", "u", "p", "span", "div", "br"],
-          allowedAttributes: { span: ["style"], div: ["style"] },
-        })
-      : product.details;
+    product.details = details || product.details;
     product.serviceId = serviceId || product.serviceId;
 
     let imageUrls = [];
@@ -192,7 +184,7 @@ router.put("/:productId", async (req, res) => {
           }
           return await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
-              { folder: "products" }, // แก้ไขให้อยู่ใน object
+              { folder: "products" },
               (error, result) => {
                 if (error) reject(new Error("Cloudinary upload failed: " + error.message));
                 resolve(result.secure_url);
@@ -217,7 +209,7 @@ router.put("/:productId", async (req, res) => {
         );
         await oldService.save();
       }
-      const newService = await Service.findOne({ serviceId }); // แก้จาก newServiceId เป็น serviceId
+      const newService = await Service.findOne({ serviceId });
       if (newService) {
         newService.productIds.push(Number(productId));
         await newService.save();
