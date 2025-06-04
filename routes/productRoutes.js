@@ -143,11 +143,11 @@ router.post("/", async (req, res) => {
 });
 
 // อัปเดตสินค้า
-router.put("/{productId}", async (req, res) => {
+router.put("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
     const { name, price, stock, details, serviceId, keptImages } = req.body;
-    const imageFiles = req.files?.();
+    const imageFiles = req.files?.images;
 
     const product = await Product.findOne({ productId: Number(productId) });
     if (!product) {
@@ -167,29 +167,32 @@ router.put("/{productId}", async (req, res) => {
     product.serviceId = serviceId || product.serviceId;
 
     let imageUrls = [];
+    // เก็บ URL รูปภาพที่ต้องการเก็บไว้
     const keptImageUrls = keptImages ? JSON.parse(keptImages) : [];
 
+    // ลบรูปภาพเก่าที่ไม่อยู่ใน keptImages
     if (product.images && product.images.length > 0) {
       await Promise.all(
         product.images.map(async (url) => {
           if (!keptImageUrls.includes(url)) {
             const publicId = url.split("/").pop().split(".")[0];
-            await cloudinary.uploader.destroy(`products/${img}`);
+            await cloudinary.uploader.destroy(`products/${publicId}`);
           }
         })
       );
     }
 
+    // อัปโหลดรูปภาพใหม่ (ถ้ามี)
     if (imageFiles) {
       const files = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
       imageUrls = await Promise.all(
         files.map(async (file) => {
-          if (!file.mimetype("image/").test(file.mimetype)) {
+          if (!file.mimetype.startsWith("image/")) {
             throw new Error("File must be an image");
           }
           return await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
-              folder: "products",
+              { folder: "products" }, // แก้ไขให้อยู่ใน object
               (error, result) => {
                 if (error) reject(new Error("Cloudinary upload failed: " + error.message));
                 resolve(result.secure_url);
@@ -197,35 +200,36 @@ router.put("/{productId}", async (req, res) => {
             );
             uploadStream.end(file.data);
           });
-        }
-
+        })
       );
-      product.images = [...keptImageUrls, ...imageUrls];
-
-      await product.save();
-
-      if (serviceId && serviceId !== oldServiceId) {
-        const oldService = await Service.findOne({ serviceId: oldServiceId });
-        if (oldService) {
-          oldService.productIds = oldService.productIds.filter(
-            (id) => id !== Number(productId)
-          );
-          await oldService.save();
-        }
-        const newService = await Service.findOne({ serviceId: newServiceId });
-        if (newService) {
-          newService.productIds.push(Number(productId));
-          await newService.save();
-        }
-      }
-
-      res.json({ message": "Product updated successfully", product });
-    } catch (error) {
-      console.error("Error updating product: ", error.message);
-      res.status(500).json({ error: "Failed to update product", details: error.message });
     }
+
+    // รวม URL รูปภาพที่เก็บไว้กับรูปใหม่
+    product.images = [...keptImageUrls, ...imageUrls];
+
+    await product.save();
+
+    if (serviceId && serviceId !== oldServiceId) {
+      const oldService = await Service.findOne({ serviceId: oldServiceId });
+      if (oldService) {
+        oldService.productIds = oldService.productIds.filter(
+          (id) => id !== Number(productId)
+        );
+        await oldService.save();
+      }
+      const newService = await Service.findOne({ serviceId }); // แก้จาก newServiceId เป็น serviceId
+      if (newService) {
+        newService.productIds.push(Number(productId));
+        await newService.save();
+      }
+    }
+
+    res.json({ message: "Product updated successfully", product });
+  } catch (error) {
+    console.error("Error updating product:", error.message);
+    res.status(500).json({ error: "Failed to update product", details: error.message });
   }
-);
+});
 
 // ลบสินค้า
 router.delete("/:productId", async (req, res) => {
