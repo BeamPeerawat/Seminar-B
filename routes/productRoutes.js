@@ -143,7 +143,7 @@ router.post("/", async (req, res) => {
 router.put("/:productId", async (req, res) => {
   try {
     const { productId } = req.params;
-    const { name, price, stock, details, serviceId } = req.body;
+    const { name, price, stock, details, serviceId, keptImages } = req.body;
     const imageFiles = req.files?.images;
 
     const product = await Product.findOne({ productId: Number(productId) });
@@ -158,9 +158,26 @@ router.put("/:productId", async (req, res) => {
     product.details = details || product.details;
     product.serviceId = serviceId || product.serviceId;
 
+    let imageUrls = [];
+    // เก็บ URL รูปภาพที่ต้องการเก็บไว้
+    const keptImageUrls = keptImages ? JSON.parse(keptImages) : [];
+
+    // ลบรูปภาพเก่าที่ไม่อยู่ใน keptImages
+    if (product.images && product.images.length > 0) {
+      await Promise.all(
+        product.images.map(async (url) => {
+          if (!keptImageUrls.includes(url)) {
+            const publicId = url.split("/").pop().split(".")[0];
+            await cloudinary.uploader.destroy(`products/${publicId}`);
+          }
+        })
+      );
+    }
+
+    // อัปโหลดรูปภาพใหม่ (ถ้ามี)
     if (imageFiles) {
       const files = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
-      const newImageUrls = await Promise.all(
+      imageUrls = await Promise.all(
         files.map(async (file) => {
           if (!file.mimetype.startsWith("image/")) {
             throw new Error("File must be an image");
@@ -177,17 +194,10 @@ router.put("/:productId", async (req, res) => {
           });
         })
       );
-      // ลบรูปภาพเก่าจาก Cloudinary
-      if (product.images && product.images.length > 0) {
-        await Promise.all(
-          product.images.map(async (url) => {
-            const publicId = url.split("/").pop().split(".")[0];
-            await cloudinary.uploader.destroy(`products/${publicId}`);
-          })
-        );
-      }
-      product.images = newImageUrls; // อัปเดตด้วยรูปใหม่
     }
+
+    // รวม URL รูปภาพที่เก็บไว้กับรูปใหม่
+    product.images = [...keptImageUrls, ...imageUrls];
 
     await product.save();
 
