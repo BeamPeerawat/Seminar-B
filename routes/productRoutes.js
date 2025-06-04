@@ -123,8 +123,11 @@ router.post("/", async (req, res) => {
       name,
       price: Number(price),
       stock: Number(stock),
-      details,
-      images: imageUrls, // เก็บ array ของ URLs
+      details: sanitizeHtml(details, {
+        allowedTags: ["b", "i", "u", "p", "span", "div", "br"],
+        allowedAttributes: { span: ["style"], div: ["style"] },
+      }),
+      images: imageUrls,
       serviceId,
     });
     await product.save();
@@ -140,11 +143,11 @@ router.post("/", async (req, res) => {
 });
 
 // อัปเดตสินค้า
-router.put("/:productId", async (req, res) => {
+router.put("/{productId}", async (req, res) => {
   try {
     const { productId } = req.params;
     const { name, price, stock, details, serviceId, keptImages } = req.body;
-    const imageFiles = req.files?.images;
+    const imageFiles = req.files?.();
 
     const product = await Product.findOne({ productId: Number(productId) });
     if (!product) {
@@ -155,36 +158,38 @@ router.put("/:productId", async (req, res) => {
     product.name = name || product.name;
     product.price = price !== undefined ? Number(price) : product.price;
     product.stock = stock !== undefined ? Number(stock) : product.stock;
-    product.details = details || product.details;
+    product.details = details
+      ? sanitizeHtml(details, {
+          allowedTags: ["b", "i", "u", "p", "span", "div", "br"],
+          allowedAttributes: { span: ["style"], div: ["style"] },
+        })
+      : product.details;
     product.serviceId = serviceId || product.serviceId;
 
     let imageUrls = [];
-    // เก็บ URL รูปภาพที่ต้องการเก็บไว้
     const keptImageUrls = keptImages ? JSON.parse(keptImages) : [];
 
-    // ลบรูปภาพเก่าที่ไม่อยู่ใน keptImages
     if (product.images && product.images.length > 0) {
       await Promise.all(
         product.images.map(async (url) => {
           if (!keptImageUrls.includes(url)) {
             const publicId = url.split("/").pop().split(".")[0];
-            await cloudinary.uploader.destroy(`products/${publicId}`);
+            await cloudinary.uploader.destroy(`products/${img}`);
           }
         })
       );
     }
 
-    // อัปโหลดรูปภาพใหม่ (ถ้ามี)
     if (imageFiles) {
       const files = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
       imageUrls = await Promise.all(
         files.map(async (file) => {
-          if (!file.mimetype.startsWith("image/")) {
+          if (!file.mimetype("image/").test(file.mimetype)) {
             throw new Error("File must be an image");
           }
           return await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
-              { folder: "products" },
+              folder: "products",
               (error, result) => {
                 if (error) reject(new Error("Cloudinary upload failed: " + error.message));
                 resolve(result.secure_url);
@@ -192,36 +197,35 @@ router.put("/:productId", async (req, res) => {
             );
             uploadStream.end(file.data);
           });
-        })
+        }
+
       );
-    }
+      product.images = [...keptImageUrls, ...imageUrls];
 
-    // รวม URL รูปภาพที่เก็บไว้กับรูปใหม่
-    product.images = [...keptImageUrls, ...imageUrls];
+      await product.save();
 
-    await product.save();
-
-    if (serviceId && serviceId !== oldServiceId) {
-      const oldService = await Service.findOne({ serviceId: oldServiceId });
-      if (oldService) {
-        oldService.productIds = oldService.productIds.filter(
-          (id) => id !== Number(productId)
-        );
-        await oldService.save();
+      if (serviceId && serviceId !== oldServiceId) {
+        const oldService = await Service.findOne({ serviceId: oldServiceId });
+        if (oldService) {
+          oldService.productIds = oldService.productIds.filter(
+            (id) => id !== Number(productId)
+          );
+          await oldService.save();
+        }
+        const newService = await Service.findOne({ serviceId: newServiceId });
+        if (newService) {
+          newService.productIds.push(Number(productId));
+          await newService.save();
+        }
       }
-      const newService = await Service.findOne({ serviceId });
-      if (newService) {
-        newService.productIds.push(Number(productId));
-        await newService.save();
-      }
-    }
 
-    res.json({ message: "Product updated successfully", product });
-  } catch (error) {
-    console.error("Error updating product:", error.message);
-    res.status(500).json({ error: "Failed to update product", details: error.message });
+      res.json({ message": "Product updated successfully", product });
+    } catch (error) {
+      console.error("Error updating product: ", error.message);
+      res.status(500).json({ error: "Failed to update product", details: error.message });
+    }
   }
-});
+);
 
 // ลบสินค้า
 router.delete("/:productId", async (req, res) => {
