@@ -1,3 +1,4 @@
+
 import express from "express";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
@@ -6,10 +7,8 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Middleware เพื่อตรวจสอบว่าเป็นแอดมิน
 router.use(authMiddleware);
 
-// Route สำหรับดึงข้อมูลสรุป
 router.get("/summary", async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -23,7 +22,6 @@ router.get("/summary", async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-    // ยอดขาย (เฉพาะออเดอร์ที่ confirmed หรือ delivered)
     const sales = await Order.aggregate([
       { $match: { status: { $in: ["confirmed", "delivered"] } } },
       {
@@ -49,7 +47,6 @@ router.get("/summary", async (req, res) => {
       },
     ]);
 
-    // จำนวนออเดอร์ตามสถานะ
     const orderStatus = await Order.aggregate([
       {
         $group: {
@@ -59,7 +56,6 @@ router.get("/summary", async (req, res) => {
       },
     ]);
 
-    // สินค้าขายดี (Top 5)
     const topProducts = await Order.aggregate([
       { $match: { status: { $in: ["confirmed", "delivered"] } } },
       { $unwind: "$items" },
@@ -75,14 +71,11 @@ router.get("/summary", async (req, res) => {
       { $limit: 5 },
     ]);
 
-    // จำนวนผู้ใช้
     const totalUsers = await User.countDocuments();
-
-    // จำนวนผู้เยี่ยมชม
     const visitor = await Visitor.findOne();
     const visitorCount = visitor ? visitor.count : 0;
 
-    res.status(200).json({
+    const responseData = {
       success: true,
       data: {
         sales: sales[0] || { daily: 0, monthly: 0, yearly: 0, total: 0 },
@@ -94,7 +87,10 @@ router.get("/summary", async (req, res) => {
         totalUsers,
         visitorCount,
       },
-    });
+    };
+
+    console.log("Report response:", responseData); // Debug
+    res.status(200).json(responseData);
   } catch (error) {
     console.error("Error fetching report summary:", error);
     res.status(500).json({ success: false, error: error.message });
