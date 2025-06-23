@@ -1,4 +1,3 @@
-
 import express from "express";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
@@ -12,7 +11,9 @@ router.use(authMiddleware);
 router.get("/summary", async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log("User ID from token:", userId); // Debug
     const user = await User.findOne({ userId });
+    console.log("User found:", user); // Debug
     if (!user || user.role !== "admin") {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
@@ -28,33 +29,24 @@ router.get("/summary", async (req, res) => {
         $group: {
           _id: null,
           daily: {
-            $sum: {
-              $cond: [{ $gte: ["$createdAt", startOfDay] }, "$total", 0],
-            },
+            $sum: { $cond: [{ $gte: ["$createdAt", startOfDay] }, "$total", 0] },
           },
           monthly: {
-            $sum: {
-              $cond: [{ $gte: ["$createdAt", startOfMonth] }, "$total", 0],
-            },
+            $sum: { $cond: [{ $gte: ["$createdAt", startOfMonth] }, "$total", 0] },
           },
           yearly: {
-            $sum: {
-              $cond: [{ $gte: ["$createdAt", startOfYear] }, "$total", 0],
-            },
+            $sum: { $cond: [{ $gte: ["$createdAt", startOfYear] }, "$total", 0] },
           },
           total: { $sum: "$total" },
         },
       },
     ]);
+    console.log("Sales aggregation result:", sales); // Debug
 
     const orderStatus = await Order.aggregate([
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
+    console.log("Order status aggregation result:", orderStatus); // Debug
 
     const topProducts = await Order.aggregate([
       { $match: { status: { $in: ["confirmed", "delivered"] } } },
@@ -70,10 +62,14 @@ router.get("/summary", async (req, res) => {
       { $sort: { totalQuantity: -1 } },
       { $limit: 5 },
     ]);
+    console.log("Top products aggregation result:", topProducts); // Debug
 
     const totalUsers = await User.countDocuments();
+    console.log("Total users:", totalUsers); // Debug
+
     const visitor = await Visitor.findOne();
     const visitorCount = visitor ? visitor.count : 0;
+    console.log("Visitor count:", visitorCount); // Debug
 
     const responseData = {
       success: true,
@@ -89,10 +85,10 @@ router.get("/summary", async (req, res) => {
       },
     };
 
-    console.log("Report response:", responseData); // Debug
+    console.log("Final report response:", responseData); // Debug
     res.status(200).json(responseData);
   } catch (error) {
-    console.error("Error fetching report summary:", error);
+    console.error("Error fetching report summary:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
