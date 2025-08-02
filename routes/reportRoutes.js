@@ -20,6 +20,11 @@ router.get("/sales", async (req, res) => {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
+    // Validate date range
+    if (!from || !to) {
+      return res.status(400).json({ success: false, error: "Please provide both 'from' and 'to' dates" });
+    }
+
     const query = {
       createdAt: {
         $gte: new Date(from),
@@ -50,7 +55,7 @@ router.get("/sales", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching sales report:", error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: "Failed to fetch sales report" });
   }
 });
 
@@ -62,6 +67,10 @@ router.get("/products/top-selling", async (req, res) => {
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+    }
+
+    if (!from || !to) {
+      return res.status(400).json({ success: false, error: "Please provide both 'from' and 'to' dates" });
     }
 
     const orders = await Order.find({
@@ -105,7 +114,7 @@ router.get("/products/top-selling", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching product report:", error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: "Failed to fetch product report" });
   }
 });
 
@@ -117,6 +126,10 @@ router.get("/customers/top", async (req, res) => {
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+    }
+
+    if (!from || !to) {
+      return res.status(400).json({ success: false, error: "Please provide both 'from' and 'to' dates" });
     }
 
     const orders = await Order.find({
@@ -163,7 +176,7 @@ router.get("/customers/top", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching customer report:", error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: "Failed to fetch customer report" });
   }
 });
 
@@ -177,9 +190,13 @@ router.get("/export", async (req, res) => {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
+    if (!type || !from || !to) {
+      return res.status(400).json({ success: false, error: "Please provide type, from, and to parameters" });
+    }
+
     let data = [];
     let fields = [];
-    let filename = "";
+    let filename = `report-${type}-${from}-to-${to}`;
 
     if (type === "sales") {
       const orders = await Order.find({
@@ -197,7 +214,6 @@ router.get("/export", async (req, res) => {
         paymentMethod: order.paymentMethod,
       }));
       fields = ["orderNumber", "date", "customer", "total", "status", "paymentMethod"];
-      filename = "sales-report";
     } else if (type === "products") {
       const orders = await Order.find({
         createdAt: {
@@ -228,7 +244,6 @@ router.get("/export", async (req, res) => {
       const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
       data = [...data, ...lowStock.map((p) => ({ productId: p.productId, name: p.name, stock: p.stock }))];
       fields = ["productId", "name", "quantity", "total", "stock"];
-      filename = "products-report";
     } else if (type === "customers") {
       const orders = await Order.find({
         createdAt: {
@@ -255,7 +270,6 @@ router.get("/export", async (req, res) => {
         totalSpent: data.totalSpent,
       }));
       fields = ["userId", "name", "orderCount", "totalSpent"];
-      filename = "customers-report";
     } else if (type === "orders") {
       data = await Order.find({
         createdAt: {
@@ -270,7 +284,6 @@ router.get("/export", async (req, res) => {
         status: order.status,
       }));
       fields = ["orderNumber", "date", "customer", "total", "status"];
-      filename = "orders-report";
     } else if (type === "stock") {
       data = await Product.find().select("productId name stock").map((p) => ({
         productId: p.productId,
@@ -278,17 +291,22 @@ router.get("/export", async (req, res) => {
         stock: p.stock,
       }));
       fields = ["productId", "name", "stock"];
-      filename = "stock-report";
+    } else {
+      return res.status(400).json({ success: false, error: "Invalid report type" });
+    }
+
+    if (data.length === 0) {
+      return res.status(404).json({ success: false, error: "No data available for the selected criteria" });
     }
 
     const parser = new Parser({ fields });
     const csv = parser.parse(data);
     res.header("Content-Type", "text/csv");
-    res.attachment(`${filename}-${from}-to-${to}.csv`);
+    res.attachment(`${filename}.csv`);
     res.send(csv);
   } catch (error) {
     console.error("Error exporting report:", error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: "Failed to export report" });
   }
 });
 

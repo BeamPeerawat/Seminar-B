@@ -20,7 +20,8 @@ import cartRoutes from "./routes/cartRoutes.js";
 import fileUpload from "express-fileupload";
 import cancelExpiredOrders from "./cron/cancelExpiredOrders.js";
 import reportRoutes from "./routes/reportRoutes.js";
-
+import reportOrders from "./routes/reportOrders.js";
+import reportStock from "./routes/reportStock.js";
 
 dotenv.config();
 
@@ -58,7 +59,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/services", servicesRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/reports", reportRoutes);
-
+app.use("/api/reports", reportOrders);
+app.use("/api/reports", reportStock);
 
 cancelExpiredOrders();
 
