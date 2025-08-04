@@ -1,3 +1,4 @@
+
 import express from "express";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
@@ -20,9 +21,8 @@ router.get("/sales", async (req, res) => {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
-    // Validate date range
     if (!from || !to) {
-      return res.status(400).json({ success: false, error: "Please provide both 'from' and 'to' dates" });
+      return res.status(400).json({ success: false, error: "กรุณาระบุวันที่เริ่มต้นและสิ้นสุด" });
     }
 
     const query = {
@@ -55,7 +55,7 @@ router.get("/sales", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching sales report:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch sales report" });
+    res.status(500).json({ success: false, error: "ไม่สามารถดึงข้อมูลรายงานยอดขายได้" });
   }
 });
 
@@ -70,7 +70,7 @@ router.get("/products/top-selling", async (req, res) => {
     }
 
     if (!from || !to) {
-      return res.status(400).json({ success: false, error: "Please provide both 'from' and 'to' dates" });
+      return res.status(400).json({ success: false, error: "กรุณาระบุวันที่เริ่มต้นและสิ้นสุด" });
     }
 
     const orders = await Order.find({
@@ -114,7 +114,7 @@ router.get("/products/top-selling", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching product report:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch product report" });
+    res.status(500).json({ success: false, error: "ไม่สามารถดึงข้อมูลรายงานสินค้าได้" });
   }
 });
 
@@ -129,7 +129,7 @@ router.get("/customers/top", async (req, res) => {
     }
 
     if (!from || !to) {
-      return res.status(400).json({ success: false, error: "Please provide both 'from' and 'to' dates" });
+      return res.status(400).json({ success: false, error: "กรุณาระบุวันที่เริ่มต้นและสิ้นสุด" });
     }
 
     const orders = await Order.find({
@@ -176,7 +176,7 @@ router.get("/customers/top", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching customer report:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch customer report" });
+    res.status(500).json({ success: false, error: "ไม่สามารถดึงข้อมูลรายงานลูกค้าได้" });
   }
 });
 
@@ -191,12 +191,29 @@ router.get("/export", async (req, res) => {
     }
 
     if (!type || !from || !to) {
-      return res.status(400).json({ success: false, error: "Please provide type, from, and to parameters" });
+      return res.status(400).json({ success: false, error: "กรุณาระบุประเภทรายงานและวันที่เริ่มต้น-สิ้นสุด" });
     }
 
     let data = [];
     let fields = [];
     let filename = `report-${type}-${from}-to-${to}`;
+
+    // Map field names to Thai for CSV headers
+    const fieldNameMap = {
+      orderNumber: "เลขคำสั่งซื้อ",
+      date: "วันที่",
+      customer: "ลูกค้า",
+      total: "ยอดรวม",
+      status: "สถานะ",
+      paymentMethod: "วิธีชำระเงิน",
+      productId: "รหัสสินค้า",
+      name: "ชื่อ",
+      quantity: "จำนวน",
+      stock: "สต็อก",
+      userId: "รหัสลูกค้า",
+      orderCount: "จำนวนคำสั่งซื้อ",
+      totalSpent: "ยอดใช้จ่ายรวม",
+    };
 
     if (type === "sales") {
       const orders = await Order.find({
@@ -292,21 +309,32 @@ router.get("/export", async (req, res) => {
       }));
       fields = ["productId", "name", "stock"];
     } else {
-      return res.status(400).json({ success: false, error: "Invalid report type" });
+      return res.status(400).json({ success: false, error: "ประเภทรายงานไม่ถูกต้อง" });
     }
 
     if (data.length === 0) {
-      return res.status(404).json({ success: false, error: "No data available for the selected criteria" });
+      return res.status(404).json({ success: false, error: "ไม่มีข้อมูลสำหรับเกณฑ์ที่เลือก" });
     }
 
-    const parser = new Parser({ fields });
+    // Map fields to Thai headers
+    const csvFields = fields.map((field) => ({
+      label: fieldNameMap[field] || field,
+      value: field,
+    }));
+
+    const parser = new Parser({ fields: csvFields });
     const csv = parser.parse(data);
-    res.header("Content-Type", "text/csv");
-    res.attachment(`${filename}.csv`);
-    res.send(csv);
+
+    // Add UTF-8 BOM to ensure Thai text displays correctly in Excel
+    const bom = "\uFEFF";
+    const csvWithBom = bom + csv;
+
+    res.header("Content-Type", "text/csv; charset=utf-8");
+    res.header("Content-Disposition", `attachment; filename=${filename}.csv`);
+    res.send(csvWithBom);
   } catch (error) {
     console.error("Error exporting report:", error);
-    res.status(500).json({ success: false, error: "Failed to export report" });
+    res.status(500).json({ success: false, error: "ไม่สามารถส่งออกข้อมูลได้" });
   }
 });
 
