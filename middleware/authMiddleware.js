@@ -1,7 +1,9 @@
 export const authMiddleware = (req, res, next) => {
-  if (!req.user || !req.user.userId) {
-    // ตรวจสอบว่า req.user และ userId มีค่า
-    return res.status(401).json({ message: "Unauthorized" });
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
   }
+  const token = authHeader.split(" ")[1];
+  // ...decode token...
   next();
 };
