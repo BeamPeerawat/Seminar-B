@@ -1,11 +1,13 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import blogRoutes from "./routes/blogRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
+import { corsOptions } from "./config/corsConfig.js";
 import { exchangeCode } from "./controllers/authController.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -18,8 +20,6 @@ import cartRoutes from "./routes/cartRoutes.js";
 import fileUpload from "express-fileupload";
 import cancelExpiredOrders from "./cron/cancelExpiredOrders.js";
 import reportRoutes from "./routes/reportRoutes.js";
-import cors from "cors";
-import { corsOptions } from "./config/corsConfig.js";
 
 dotenv.config();
 

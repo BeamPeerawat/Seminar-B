@@ -1,4 +1,3 @@
-
 import express from "express";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
@@ -19,10 +18,6 @@ router.get("/sales", async (req, res) => {
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
-
-    if (!from || !to) {
-      return res.status(400).json({ success: false, error: "กรุณาระบุวันที่เริ่มต้นและสิ้นสุด" });
     }
 
     const query = {
@@ -55,7 +50,7 @@ router.get("/sales", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching sales report:", error);
-    res.status(500).json({ success: false, error: "ไม่สามารถดึงข้อมูลรายงานยอดขายได้" });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -67,10 +62,6 @@ router.get("/products/top-selling", async (req, res) => {
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
-
-    if (!from || !to) {
-      return res.status(400).json({ success: false, error: "กรุณาระบุวันที่เริ่มต้นและสิ้นสุด" });
     }
 
     const orders = await Order.find({
@@ -114,7 +105,7 @@ router.get("/products/top-selling", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching product report:", error);
-    res.status(500).json({ success: false, error: "ไม่สามารถดึงข้อมูลรายงานสินค้าได้" });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -126,10 +117,6 @@ router.get("/customers/top", async (req, res) => {
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
-
-    if (!from || !to) {
-      return res.status(400).json({ success: false, error: "กรุณาระบุวันที่เริ่มต้นและสิ้นสุด" });
     }
 
     const orders = await Order.find({
@@ -176,7 +163,7 @@ router.get("/customers/top", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching customer report:", error);
-    res.status(500).json({ success: false, error: "ไม่สามารถดึงข้อมูลรายงานลูกค้าได้" });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -190,30 +177,9 @@ router.get("/export", async (req, res) => {
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
-    if (!type || !from || !to) {
-      return res.status(400).json({ success: false, error: "กรุณาระบุประเภทรายงานและวันที่เริ่มต้น-สิ้นสุด" });
-    }
-
     let data = [];
     let fields = [];
-    let filename = `report-${type}-${from}-to-${to}`;
-
-    // Map field names to Thai for CSV headers
-    const fieldNameMap = {
-      orderNumber: "เลขคำสั่งซื้อ",
-      date: "วันที่",
-      customer: "ลูกค้า",
-      total: "ยอดรวม",
-      status: "สถานะ",
-      paymentMethod: "วิธีชำระเงิน",
-      productId: "รหัสสินค้า",
-      name: "ชื่อ",
-      quantity: "จำนวน",
-      stock: "สต็อก",
-      userId: "รหัสลูกค้า",
-      orderCount: "จำนวนคำสั่งซื้อ",
-      totalSpent: "ยอดใช้จ่ายรวม",
-    };
+    let filename = "";
 
     if (type === "sales") {
       const orders = await Order.find({
@@ -231,6 +197,7 @@ router.get("/export", async (req, res) => {
         paymentMethod: order.paymentMethod,
       }));
       fields = ["orderNumber", "date", "customer", "total", "status", "paymentMethod"];
+      filename = "sales-report";
     } else if (type === "products") {
       const orders = await Order.find({
         createdAt: {
@@ -261,6 +228,7 @@ router.get("/export", async (req, res) => {
       const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
       data = [...data, ...lowStock.map((p) => ({ productId: p.productId, name: p.name, stock: p.stock }))];
       fields = ["productId", "name", "quantity", "total", "stock"];
+      filename = "products-report";
     } else if (type === "customers") {
       const orders = await Order.find({
         createdAt: {
@@ -287,6 +255,7 @@ router.get("/export", async (req, res) => {
         totalSpent: data.totalSpent,
       }));
       fields = ["userId", "name", "orderCount", "totalSpent"];
+      filename = "customers-report";
     } else if (type === "orders") {
       data = await Order.find({
         createdAt: {
@@ -301,6 +270,7 @@ router.get("/export", async (req, res) => {
         status: order.status,
       }));
       fields = ["orderNumber", "date", "customer", "total", "status"];
+      filename = "orders-report";
     } else if (type === "stock") {
       data = await Product.find().select("productId name stock").map((p) => ({
         productId: p.productId,
@@ -308,33 +278,17 @@ router.get("/export", async (req, res) => {
         stock: p.stock,
       }));
       fields = ["productId", "name", "stock"];
-    } else {
-      return res.status(400).json({ success: false, error: "ประเภทรายงานไม่ถูกต้อง" });
+      filename = "stock-report";
     }
 
-    if (data.length === 0) {
-      return res.status(404).json({ success: false, error: "ไม่มีข้อมูลสำหรับเกณฑ์ที่เลือก" });
-    }
-
-    // Map fields to Thai headers
-    const csvFields = fields.map((field) => ({
-      label: fieldNameMap[field] || field,
-      value: field,
-    }));
-
-    const parser = new Parser({ fields: csvFields });
+    const parser = new Parser({ fields });
     const csv = parser.parse(data);
-
-    // Add UTF-8 BOM to ensure Thai text displays correctly in Excel
-    const bom = "\uFEFF";
-    const csvWithBom = bom + csv;
-
-    res.header("Content-Type", "text/csv; charset=utf-8");
-    res.header("Content-Disposition", `attachment; filename=${filename}.csv`);
-    res.send(csvWithBom);
+    res.header("Content-Type", "text/csv");
+    res.attachment(`${filename}-${from}-to-${to}.csv`);
+    res.send(csv);
   } catch (error) {
     console.error("Error exporting report:", error);
-    res.status(500).json({ success: false, error: "ไม่สามารถส่งออกข้อมูลได้" });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

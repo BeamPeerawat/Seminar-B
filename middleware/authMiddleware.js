@@ -1,16 +1,7 @@
-import jwt from "jsonwebtoken";
-
 export const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ success: false, error: "Unauthorized" });
+  if (!req.user || !req.user.userId) {
+    // ตรวจสอบว่า req.user และ userId มีค่า
+    return res.status(401).json({ message: "Unauthorized" });
   }
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // ใช้ secret ของคุณ
-    req.user = decoded; // สำคัญ! set req.user
-    next();
-  } catch (err) {
-    return res.status(401).json({ success: false, error: "Invalid token" });
-  }
+  next();
 };
