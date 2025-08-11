@@ -4,24 +4,16 @@ import Product from "../models/Product.js";
 import User from "../models/User.js";
 import Profile from "../models/Profile.js";
 import { Parser } from "json2csv";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+// ลบ authMiddleware เพื่อ bypass auth
 
 const router = express.Router();
 
-router.use(authMiddleware);
+// ลบ router.use(authMiddleware);
 
-// GET /api/reports/sales
+// GET /api/reports/sales (ลบการตรวจสอบ admin)
 router.get("/sales", async (req, res) => {
   try {
     const { from, to } = req.query;
-    const userId = req.user.userId;
-    console.log("Sales report requested:", { userId, from, to });
-
-    const user = await User.findOne({ userId });
-    if (!user || user.role !== "admin") {
-      console.log("Access denied for user:", userId);
-      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
 
     const query = {
       createdAt: {
@@ -29,10 +21,8 @@ router.get("/sales", async (req, res) => {
         $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
     };
-    console.log("Sales query:", query);
 
     const orders = await Order.find(query);
-    console.log("Orders found:", orders.length);
 
     const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
     const totalOrders = orders.length;
@@ -55,23 +45,14 @@ router.get("/sales", async (req, res) => {
       byPayment,
     });
   } catch (error) {
-    console.error("Error fetching sales report:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/products/top-selling
+// GET /api/reports/products/top-selling (ลบการตรวจสอบ admin)
 router.get("/products/top-selling", async (req, res) => {
   try {
     const { from, to } = req.query;
-    const userId = req.user.userId;
-    console.log("Product report requested:", { userId, from, to });
-
-    const user = await User.findOne({ userId });
-    if (!user || user.role !== "admin") {
-      console.log("Access denied for user:", userId);
-      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
 
     const orders = await Order.find({
       createdAt: {
@@ -106,8 +87,6 @@ router.get("/products/top-selling", async (req, res) => {
       .slice(0, 5);
 
     const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
-    console.log("Top selling products:", topSelling);
-    console.log("Low stock products:", lowStock);
 
     res.status(200).json({
       success: true,
@@ -115,23 +94,14 @@ router.get("/products/top-selling", async (req, res) => {
       lowStock,
     });
   } catch (error) {
-    console.error("Error fetching product report:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/customers/top
+// GET /api/reports/customers/top (ลบการตรวจสอบ admin)
 router.get("/customers/top", async (req, res) => {
   try {
     const { from, to } = req.query;
-    const userId = req.user.userId;
-    console.log("Customer report requested:", { userId, from, to });
-
-    const user = await User.findOne({ userId });
-    if (!user || user.role !== "admin") {
-      console.log("Access denied for user:", userId);
-      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
 
     const orders = await Order.find({
       createdAt: {
@@ -169,8 +139,6 @@ router.get("/customers/top", async (req, res) => {
         $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
     });
-    console.log("Top customers:", topCustomers);
-    console.log("New customers:", newCustomers);
 
     res.status(200).json({
       success: true,
@@ -178,23 +146,14 @@ router.get("/customers/top", async (req, res) => {
       newCustomers,
     });
   } catch (error) {
-    console.error("Error fetching customer report:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/export
+// GET /api/reports/export (ลบการตรวจสอบ admin)
 router.get("/export", async (req, res) => {
   try {
     const { type, from, to } = req.query;
-    const userId = req.user.userId;
-    console.log("Export report requested:", { userId, type, from, to });
-
-    const user = await User.findOne({ userId });
-    if (!user || user.role !== "admin") {
-      console.log("Access denied for user:", userId);
-      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
-    }
 
     let data = [];
     let fields = [];
@@ -306,7 +265,6 @@ router.get("/export", async (req, res) => {
     res.attachment(`${filename}-${from}-to-${to}.csv`);
     res.send(csv);
   } catch (error) {
-    console.error("Error exporting report:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
