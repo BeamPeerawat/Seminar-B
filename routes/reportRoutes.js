@@ -15,19 +15,25 @@ router.get("/sales", async (req, res) => {
   try {
     const { from, to } = req.query;
     const userId = req.user.userId;
+    console.log("Sales report requested:", { userId, from, to });
+
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
+      console.log("Access denied for user:", userId);
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
     const query = {
       createdAt: {
-        $gte: new Date(from),
-        $lte: new Date(to),
+        $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+        $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
     };
+    console.log("Sales query:", query);
 
     const orders = await Order.find(query);
+    console.log("Orders found:", orders.length);
+
     const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
     const totalOrders = orders.length;
 
@@ -59,15 +65,18 @@ router.get("/products/top-selling", async (req, res) => {
   try {
     const { from, to } = req.query;
     const userId = req.user.userId;
+    console.log("Product report requested:", { userId, from, to });
+
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
+      console.log("Access denied for user:", userId);
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
     const orders = await Order.find({
       createdAt: {
-        $gte: new Date(from),
-        $lte: new Date(to),
+        $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+        $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
     });
 
@@ -97,6 +106,8 @@ router.get("/products/top-selling", async (req, res) => {
       .slice(0, 5);
 
     const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
+    console.log("Top selling products:", topSelling);
+    console.log("Low stock products:", lowStock);
 
     res.status(200).json({
       success: true,
@@ -114,15 +125,18 @@ router.get("/customers/top", async (req, res) => {
   try {
     const { from, to } = req.query;
     const userId = req.user.userId;
+    console.log("Customer report requested:", { userId, from, to });
+
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
+      console.log("Access denied for user:", userId);
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
     const orders = await Order.find({
       createdAt: {
-        $gte: new Date(from),
-        $lte: new Date(to),
+        $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+        $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
     });
 
@@ -151,10 +165,12 @@ router.get("/customers/top", async (req, res) => {
 
     const newCustomers = await Profile.countDocuments({
       createdAt: {
-        $gte: new Date(from),
-        $lte: new Date(to),
+        $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+        $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
     });
+    console.log("Top customers:", topCustomers);
+    console.log("New customers:", newCustomers);
 
     res.status(200).json({
       success: true,
@@ -172,8 +188,11 @@ router.get("/export", async (req, res) => {
   try {
     const { type, from, to } = req.query;
     const userId = req.user.userId;
+    console.log("Export report requested:", { userId, type, from, to });
+
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
+      console.log("Access denied for user:", userId);
       return res.status(403).json({ success: false, error: "Access denied: Admin only" });
     }
 
@@ -184,8 +203,8 @@ router.get("/export", async (req, res) => {
     if (type === "sales") {
       const orders = await Order.find({
         createdAt: {
-          $gte: new Date(from),
-          $lte: new Date(to),
+          $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+          $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       });
       data = orders.map((order) => ({
@@ -201,8 +220,8 @@ router.get("/export", async (req, res) => {
     } else if (type === "products") {
       const orders = await Order.find({
         createdAt: {
-          $gte: new Date(from),
-          $lte: new Date(to),
+          $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+          $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       });
       const productSales = {};
@@ -232,8 +251,8 @@ router.get("/export", async (req, res) => {
     } else if (type === "customers") {
       const orders = await Order.find({
         createdAt: {
-          $gte: new Date(from),
-          $lte: new Date(to),
+          $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+          $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       });
       const customerSales = {};
@@ -259,8 +278,8 @@ router.get("/export", async (req, res) => {
     } else if (type === "orders") {
       data = await Order.find({
         createdAt: {
-          $gte: new Date(from),
-          $lte: new Date(to),
+          $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+          $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       }).map((order) => ({
         orderNumber: order.orderNumber,
