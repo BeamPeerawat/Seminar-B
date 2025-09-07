@@ -408,15 +408,4 @@ router.post("/seed", async (req, res) => {
   }
 });
 
-// GET /api/products/select - Get all products for selection
-router.get("/select", async (req, res) => {
-  try {
-    const products = await Product.find().select("productId name");
-    res.json({ success: true, products });
-  } catch (error) {
-    console.error("Error fetching products:", error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 export default router;

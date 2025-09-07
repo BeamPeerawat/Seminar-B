@@ -4,10 +4,13 @@ import Product from "../models/Product.js";
 import User from "../models/User.js";
 import Profile from "../models/Profile.js";
 import { Parser } from "json2csv";
+// ลบ authMiddleware เพื่อ bypass auth
 
 const router = express.Router();
 
-// GET /api/reports/sales (original, unchanged)
+// ลบ router.use(authMiddleware);
+
+// GET /api/reports/sales (ลบการตรวจสอบ admin)
 router.get("/sales", async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -46,7 +49,7 @@ router.get("/sales", async (req, res) => {
   }
 });
 
-// GET /api/reports/products/top-selling (unchanged)
+// GET /api/reports/products/top-selling (ลบการตรวจสอบ admin)
 router.get("/products/top-selling", async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -95,7 +98,7 @@ router.get("/products/top-selling", async (req, res) => {
   }
 });
 
-// GET /api/reports/customers/top (unchanged)
+// GET /api/reports/customers/top (ลบการตรวจสอบ admin)
 router.get("/customers/top", async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -147,7 +150,7 @@ router.get("/customers/top", async (req, res) => {
   }
 });
 
-// GET /api/reports/export (unchanged)
+// GET /api/reports/export (ลบการตรวจสอบ admin)
 router.get("/export", async (req, res) => {
   try {
     const { type, from, to } = req.query;
@@ -174,6 +177,7 @@ router.get("/export", async (req, res) => {
       fields = ["orderNumber", "date", "customer", "total", "status", "paymentMethod"];
       filename = "sales-report";
     } else if (type === "products") {
+      const productIds = req.query.productIds ? req.query.productIds.split(",") : null;
       const orders = await Order.find({
         createdAt: {
           $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
@@ -183,6 +187,7 @@ router.get("/export", async (req, res) => {
       const productSales = {};
       orders.forEach((order) => {
         order.items.forEach((item) => {
+          if (productIds && !productIds.includes(String(item.productId))) return;
           if (!productSales[item.productId]) {
             productSales[item.productId] = {
               name: item.name,
@@ -200,7 +205,13 @@ router.get("/export", async (req, res) => {
         quantity: data.quantity,
         total: data.total,
       }));
-      const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
+      // lowStock เฉพาะสินค้าที่เลือก
+      let lowStock = [];
+      if (productIds) {
+        lowStock = await Product.find({ productId: { $in: productIds.map(Number) }, stock: { $lte: 10 } }).select("productId name stock");
+      } else {
+        lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
+      }
       data = [...data, ...lowStock.map((p) => ({ productId: p.productId, name: p.name, stock: p.stock }))];
       fields = ["productId", "name", "quantity", "total", "stock"];
       filename = "products-report";
@@ -255,67 +266,6 @@ router.get("/export", async (req, res) => {
       fields = ["productId", "name", "stock"];
       filename = "stock-report";
     }
-
-    const parser = new Parser({ fields });
-    const csv = parser.parse(data);
-    res.header("Content-Type", "text/csv");
-    res.attachment(`${filename}-${from}-to-${to}.csv`);
-    res.send(csv);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// New endpoint for exporting selected products
-router.get("/export-selected-products", async (req, res) => {
-  try {
-    const { productIds, from, to } = req.query;
-    const productIdList = productIds ? productIds.split(",") : [];
-
-    if (productIdList.length === 0) {
-      return res.status(400).json({ success: false, error: "No products selected" });
-    }
-
-    const query = {
-      createdAt: {
-        $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
-        $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
-      },
-      "items.productId": { $in: productIdList },
-    };
-
-    const orders = await Order.find(query);
-
-    // Extract relevant item data from orders
-    const data = [];
-    orders.forEach((order) => {
-      order.items.forEach((item) => {
-        if (productIdList.includes(item.productId)) {
-          data.push({
-            orderNumber: order.orderNumber,
-            date: order.createdAt.toISOString().split("T")[0],
-            customerName: order.customer.name,
-            productName: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            total: item.price * item.quantity,
-            status: order.status,
-          });
-        }
-      });
-    });
-
-    const fields = [
-      "orderNumber",
-      "date",
-      "customerName",
-      "productName",
-      "quantity",
-      "price",
-      "total",
-      "status",
-    ];
-    const filename = "selected-products-report";
 
     const parser = new Parser({ fields });
     const csv = parser.parse(data);
