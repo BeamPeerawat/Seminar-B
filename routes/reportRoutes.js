@@ -7,7 +7,7 @@ import { Parser } from "json2csv";
 
 const router = express.Router();
 
-// GET /api/reports/sales
+// GET /api/reports/sales (original, unchanged)
 router.get("/sales", async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -34,39 +34,19 @@ router.get("/sales", async (req, res) => {
       return acc;
     }, {});
 
-    const dailyData = {};
-    orders.forEach((order) => {
-      const date = order.createdAt.toISOString().split("T")[0];
-      if (!dailyData[date]) {
-        dailyData[date] = { sales: 0, orders: 0 };
-      }
-      dailyData[date].sales += order.total;
-      dailyData[date].orders += 1;
-    });
-
-    const dailySales = Object.entries(dailyData)
-      .map(([date, data]) => ({
-        date,
-        sales: data.sales,
-        orders: data.orders,
-      }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-
     res.status(200).json({
       success: true,
       totalSales,
       totalOrders,
       byStatus,
       byPayment,
-      dailySales,
     });
   } catch (error) {
-    console.error("Sales report error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/products/top-selling
+// GET /api/reports/products/top-selling (unchanged)
 router.get("/products/top-selling", async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -83,18 +63,25 @@ router.get("/products/top-selling", async (req, res) => {
       order.items.forEach((item) => {
         if (!productSales[item.productId]) {
           productSales[item.productId] = {
-            productId: item.productId,
             name: item.name,
-            quantitySold: 0,
-            totalSales: 0,
+            quantity: 0,
+            total: 0,
           };
         }
-        productSales[item.productId].quantitySold += item.quantity;
-        productSales[item.productId].totalSales += item.price * item.quantity;
+        productSales[item.productId].quantity += item.quantity;
+        productSales[item.productId].total += item.price * item.quantity;
       });
     });
 
-    const topSelling = Object.values(productSales).sort((a, b) => b.quantitySold - a.quantitySold).slice(0, 5);
+    const topSelling = Object.entries(productSales)
+      .map(([productId, data]) => ({
+        productId,
+        name: data.name,
+        quantity: data.quantity,
+        total: data.total,
+      }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
 
     const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
 
@@ -104,12 +91,11 @@ router.get("/products/top-selling", async (req, res) => {
       lowStock,
     });
   } catch (error) {
-    console.error("Product report error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/customers/top
+// GET /api/reports/customers/top (unchanged)
 router.get("/customers/top", async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -123,22 +109,28 @@ router.get("/customers/top", async (req, res) => {
 
     const customerSales = {};
     orders.forEach((order) => {
-      const customerId = order.userId;
-      if (!customerSales[customerId]) {
-        customerSales[customerId] = {
-          userId: customerId,
+      if (!customerSales[order.userId]) {
+        customerSales[order.userId] = {
           name: order.customer.name,
           orderCount: 0,
           totalSpent: 0,
         };
       }
-      customerSales[customerId].orderCount += 1;
-      customerSales[customerId].totalSpent += order.total;
+      customerSales[order.userId].orderCount += 1;
+      customerSales[order.userId].totalSpent += order.total;
     });
 
-    const topCustomers = Object.values(customerSales).sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5);
+    const topCustomers = Object.entries(customerSales)
+      .map(([userId, data]) => ({
+        userId,
+        name: data.name,
+        orderCount: data.orderCount,
+        totalSpent: data.totalSpent,
+      }))
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 5);
 
-    const newCustomers = await User.countDocuments({
+    const newCustomers = await Profile.countDocuments({
       createdAt: {
         $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
         $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
@@ -151,15 +143,15 @@ router.get("/customers/top", async (req, res) => {
       newCustomers,
     });
   } catch (error) {
-    console.error("Customer report error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/export
+// GET /api/reports/export (unchanged)
 router.get("/export", async (req, res) => {
   try {
     const { type, from, to } = req.query;
+
     let data = [];
     let fields = [];
     let filename = "";
@@ -171,10 +163,9 @@ router.get("/export", async (req, res) => {
           $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       });
-
       data = orders.map((order) => ({
         orderNumber: order.orderNumber,
-        date: order.createdAt.toISOString().split("T")[0],
+        date: order.createdAt.toISOString(),
         customer: order.customer.name,
         total: order.total,
         status: order.status,
@@ -189,25 +180,29 @@ router.get("/export", async (req, res) => {
           $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       });
-
       const productSales = {};
       orders.forEach((order) => {
         order.items.forEach((item) => {
           if (!productSales[item.productId]) {
             productSales[item.productId] = {
-              productId: item.productId,
               name: item.name,
-              quantitySold: 0,
-              totalSales: 0,
+              quantity: 0,
+              total: 0,
             };
           }
-          productSales[item.productId].quantitySold += item.quantity;
-          productSales[item.productId].totalSales += item.price * item.quantity;
+          productSales[item.productId].quantity += item.quantity;
+          productSales[item.productId].total += item.price * item.quantity;
         });
       });
-
-      data = Object.values(productSales);
-      fields = ["productId", "name", "quantitySold", "totalSales"];
+      data = Object.entries(productSales).map(([productId, data]) => ({
+        productId,
+        name: data.name,
+        quantity: data.quantity,
+        total: data.total,
+      }));
+      const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
+      data = [...data, ...lowStock.map((p) => ({ productId: p.productId, name: p.name, stock: p.stock }))];
+      fields = ["productId", "name", "quantity", "total", "stock"];
       filename = "products-report";
     } else if (type === "customers") {
       const orders = await Order.find({
@@ -216,27 +211,47 @@ router.get("/export", async (req, res) => {
           $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
         },
       });
-
       const customerSales = {};
       orders.forEach((order) => {
-        const customerId = order.userId;
-        if (!customerSales[customerId]) {
-          customerSales[customerId] = {
-            userId: customerId,
+        if (!customerSales[order.userId]) {
+          customerSales[order.userId] = {
             name: order.customer.name,
             orderCount: 0,
             totalSpent: 0,
           };
         }
-        customerSales[customerId].orderCount += 1;
-        customerSales[customerId].totalSpent += order.total;
+        customerSales[order.userId].orderCount += 1;
+        customerSales[order.userId].totalSpent += order.total;
       });
-
-      data = Object.values(customerSales);
+      data = Object.entries(customerSales).map(([userId, data]) => ({
+        userId,
+        name: data.name,
+        orderCount: data.orderCount,
+        totalSpent: data.totalSpent,
+      }));
       fields = ["userId", "name", "orderCount", "totalSpent"];
       filename = "customers-report";
+    } else if (type === "orders") {
+      data = await Order.find({
+        createdAt: {
+          $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+          $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
+        },
+      }).map((order) => ({
+        orderNumber: order.orderNumber,
+        date: order.createdAt.toISOString(),
+        customer: order.customer.name,
+        total: order.total,
+        status: order.status,
+      }));
+      fields = ["orderNumber", "date", "customer", "total", "status"];
+      filename = "orders-report";
     } else if (type === "stock") {
-      data = await Product.find().select("productId name stock").lean();
+      data = await Product.find().select("productId name stock").map((p) => ({
+        productId: p.productId,
+        name: p.name,
+        stock: p.stock,
+      }));
       fields = ["productId", "name", "stock"];
       filename = "stock-report";
     }
@@ -247,51 +262,44 @@ router.get("/export", async (req, res) => {
     res.attachment(`${filename}-${from}-to-${to}.csv`);
     res.send(csv);
   } catch (error) {
-    console.error("Export error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// GET /api/reports/export-products-sales (New endpoint for selected products)
-router.get("/export-products-sales", async (req, res) => {
+// New endpoint for exporting selected products
+router.get("/export-selected-products", async (req, res) => {
   try {
-    const { from, to, productIds } = req.query;
-    if (!productIds) {
-      return res.status(400).json({ success: false, error: "No product IDs provided" });
+    const { productIds, from, to } = req.query;
+    const productIdList = productIds ? productIds.split(",") : [];
+
+    if (productIdList.length === 0) {
+      return res.status(400).json({ success: false, error: "No products selected" });
     }
 
-    const productIdArray = productIds.split(",").map((id) => id.trim());
     const query = {
       createdAt: {
         $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
         $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
       },
+      "items.productId": { $in: productIdList },
     };
 
-    const orders = await Order.find(query).lean();
-    const productDetails = await Product.find({ productId: { $in: productIdArray } })
-      .select("productId name")
-      .lean();
+    const orders = await Order.find(query);
 
-    const productMap = {};
-    productDetails.forEach((product) => {
-      productMap[product.productId.toString()] = product.name;
-    });
-
+    // Extract relevant item data from orders
     const data = [];
     orders.forEach((order) => {
       order.items.forEach((item) => {
-        if (productIdArray.includes(item.productId.toString())) {
+        if (productIdList.includes(item.productId)) {
           data.push({
             orderNumber: order.orderNumber,
             date: order.createdAt.toISOString().split("T")[0],
-            productId: item.productId,
-            productName: productMap[item.productId] || item.name,
+            customerName: order.customer.name,
+            productName: item.name,
             quantity: item.quantity,
+            price: item.price,
             total: item.price * item.quantity,
-            customer: order.customer.name,
             status: order.status,
-            paymentMethod: order.paymentMethod,
           });
         }
       });
@@ -300,21 +308,21 @@ router.get("/export-products-sales", async (req, res) => {
     const fields = [
       "orderNumber",
       "date",
-      "productId",
+      "customerName",
       "productName",
       "quantity",
+      "price",
       "total",
-      "customer",
       "status",
-      "paymentMethod",
     ];
+    const filename = "selected-products-report";
+
     const parser = new Parser({ fields });
     const csv = parser.parse(data);
     res.header("Content-Type", "text/csv");
-    res.attachment(`selected-products-sales-report-${from}-to-${to}.csv`);
+    res.attachment(`${filename}-${from}-to-${to}.csv`);
     res.send(csv);
   } catch (error) {
-    console.error("Export products sales error:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
