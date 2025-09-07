@@ -49,6 +49,68 @@ router.get("/sales", async (req, res) => {
   }
 });
 
+// GET /api/reports/products/sales (สรุปยอดขายเฉพาะ product ที่เลือก)
+router.get("/products/sales", async (req, res) => {
+  try {
+    const { products, from, to } = req.query; // products = "id1,id2,id3"
+    const productIds = products ? products.split(",") : [];
+
+    const query = {
+      createdAt: {
+        $gte: new Date(new Date(from).setUTCHours(0, 0, 0, 0)),
+        $lte: new Date(new Date(to).setUTCHours(23, 59, 59, 999)),
+      },
+      "items.productId": { $in: productIds },
+    };
+
+    const orders = await Order.find(query);
+
+    const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalOrders = orders.length;
+
+    // สรุปยอดขายราย product
+    const productSales = {};
+    orders.forEach((order) => {
+      order.items.forEach((item) => {
+        if (productIds.includes(item.productId)) {
+          if (!productSales[item.productId]) {
+            productSales[item.productId] = {
+              name: item.name,
+              quantity: 0,
+              total: 0,
+            };
+          }
+          productSales[item.productId].quantity += item.quantity;
+          productSales[item.productId].total += item.price * item.quantity;
+        }
+      });
+    });
+
+    // Export CSV
+    const data = Object.entries(productSales).map(([productId, data]) => ({
+      productId,
+      name: data.name,
+      quantity: data.quantity,
+      total: data.total,
+    }));
+    data.push({
+      productId: "Summary",
+      name: "Total",
+      quantity: totalOrders,
+      total: totalSales,
+    }); // สรุปรวม
+
+    const fields = ["productId", "name", "quantity", "total"];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(data);
+    res.header("Content-Type", "text/csv");
+    res.attachment(`selected-products-sales-${from}-to-${to}.csv`);
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET /api/reports/products/top-selling (ลบการตรวจสอบ admin)
 router.get("/products/top-selling", async (req, res) => {
   try {
@@ -86,7 +148,9 @@ router.get("/products/top-selling", async (req, res) => {
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5);
 
-    const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
+    const lowStock = await Product.find({ stock: { $lte: 10 } }).select(
+      "productId name stock"
+    );
 
     res.status(200).json({
       success: true,
@@ -174,7 +238,14 @@ router.get("/export", async (req, res) => {
         status: order.status,
         paymentMethod: order.paymentMethod,
       }));
-      fields = ["orderNumber", "date", "customer", "total", "status", "paymentMethod"];
+      fields = [
+        "orderNumber",
+        "date",
+        "customer",
+        "total",
+        "status",
+        "paymentMethod",
+      ];
       filename = "sales-report";
     } else if (type === "products") {
       const orders = await Order.find({
@@ -203,8 +274,17 @@ router.get("/export", async (req, res) => {
         quantity: data.quantity,
         total: data.total,
       }));
-      const lowStock = await Product.find({ stock: { $lte: 10 } }).select("productId name stock");
-      data = [...data, ...lowStock.map((p) => ({ productId: p.productId, name: p.name, stock: p.stock }))];
+      const lowStock = await Product.find({ stock: { $lte: 10 } }).select(
+        "productId name stock"
+      );
+      data = [
+        ...data,
+        ...lowStock.map((p) => ({
+          productId: p.productId,
+          name: p.name,
+          stock: p.stock,
+        })),
+      ];
       fields = ["productId", "name", "quantity", "total", "stock"];
       filename = "products-report";
     } else if (type === "customers") {
@@ -250,11 +330,13 @@ router.get("/export", async (req, res) => {
       fields = ["orderNumber", "date", "customer", "total", "status"];
       filename = "orders-report";
     } else if (type === "stock") {
-      data = await Product.find().select("productId name stock").map((p) => ({
-        productId: p.productId,
-        name: p.name,
-        stock: p.stock,
-      }));
+      data = await Product.find()
+        .select("productId name stock")
+        .map((p) => ({
+          productId: p.productId,
+          name: p.name,
+          stock: p.stock,
+        }));
       fields = ["productId", "name", "stock"];
       filename = "stock-report";
     }
