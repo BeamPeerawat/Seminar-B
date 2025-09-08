@@ -386,11 +386,6 @@ router.post("/cancel-expired", async (req, res) => {
 router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
   try {
     const { imageUrl } = req.body;
-    const userId = req.user.userId;
-    const user = await User.findOne({ userId });
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({ success: false, error: "Admin only" });
-    }
     const order = await Order.findOneAndUpdate(
       { orderNumber: Number(req.params.orderNumber) },
       { deliveryImageUrl: imageUrl, updatedAt: Date.now() },
