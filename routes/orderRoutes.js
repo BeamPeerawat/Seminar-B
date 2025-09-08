@@ -382,4 +382,25 @@ router.post("/cancel-expired", async (req, res) => {
   }
 });
 
+// อัปโหลดรูปจัดส่ง (admin เท่านั้น)
+router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    const userId = req.user.userId;
+    const user = await User.findOne({ userId });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ success: false, error: "Admin only" });
+    }
+    const order = await Order.findOneAndUpdate(
+      { orderNumber: Number(req.params.orderNumber) },
+      { deliveryImageUrl: imageUrl, updatedAt: Date.now() },
+      { new: true }
+    );
+    if (!order) return res.status(404).json({ success: false, error: "Order not found" });
+    res.status(200).json({ success: true, deliveryImageUrl: order.deliveryImageUrl });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;
