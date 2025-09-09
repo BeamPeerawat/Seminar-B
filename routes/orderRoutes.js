@@ -24,92 +24,33 @@ const getNextOrderNumber = async () => {
 // สร้างคำสั่งซื้อ
 router.post("/", async (req, res) => {
   try {
-    const { items, total, customer, paymentMethod } = req.body;
-    const userId = req.user.userId;
-
-    console.log("Received order data:", {
+    const {
       items,
       total,
       customer,
       paymentMethod,
       userId,
-    });
+      installationAddress, // ต้องมีตรงนี้
+      // ...อื่นๆ
+    } = req.body;
 
-    if (!userId) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Unauthorized: No user logged in" });
-    }
-
-    const user = await User.findOne({ userId });
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    // ตรวจสอบและอัปเดตสต็อกสินค้า
-    for (const item of items) {
-      const product = await Product.findOne({ productId: item.productId });
-      if (!product) {
-        return res
-          .status(404)
-          .json({ success: false, error: `Product ${item.name} not found` });
-      }
-      if (product.stock < item.quantity) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: `Insufficient stock for ${item.name}`,
-          });
-      }
-      product.stock -= item.quantity;
-      await product.save();
-    }
-
-    // ดึงเลขลำดับใหม่
     const orderNumber = await getNextOrderNumber();
 
-    // ตั้งค่า slipUploadDeadline = createdAt + 24 ชั่วโมง
-    const createdAt = new Date();
-    const slipUploadDeadline = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000);
-
-    const order = await Order.create({
+    const newOrder = new Order({
       orderNumber,
+      userId,
       items,
       total,
       customer,
       paymentMethod,
-      status: "pending",
-      userId,
-      createdAt,
-      slipUploadDeadline,
+      installationAddress, // ต้องมีตรงนี้
+      // ...อื่นๆ
     });
 
-    const profile = await Profile.findOne({ userId });
-    if (profile) {
-      profile.orders.push(order._id);
-      profile.updatedAt = Date.now();
-      await profile.save();
-    }
-
-    const orderData = order.toObject();
-    orderData.createdAt = orderData.createdAt.toISOString();
-    orderData.slipUploadDeadline = orderData.slipUploadDeadline.toISOString();
-
-    const responseData = {
-      success: true,
-      orderNumber,
-      order: orderData,
-    };
-    console.log("Sending response:", responseData);
-
-    res.status(201).json(responseData);
+    await newOrder.save();
+    res.status(201).json({ success: true, order: newOrder });
   } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
