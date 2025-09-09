@@ -36,6 +36,9 @@ router.post("/", async (req, res) => {
 
     const orderNumber = await getNextOrderNumber();
 
+    const now = Date.now();
+    const slipUploadDeadline = new Date(now + 24 * 60 * 60 * 1000); // 24 ชั่วโมง
+
     const newOrder = new Order({
       orderNumber,
       userId,
@@ -44,6 +47,7 @@ router.post("/", async (req, res) => {
       customer,
       paymentMethod,
       installationAddress, // ต้องมีตรงนี้
+      slipUploadDeadline,
       // ...อื่นๆ
     });
 
