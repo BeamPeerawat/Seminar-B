@@ -48,7 +48,7 @@ router.post("/", async (req, res) => {
     });
 
     await newOrder.save();
-    res.status(201).json({ success: true, order: newOrder });
+    res.status(201).json({ success: true, order: newOrder, orderNumber: newOrder.orderNumber });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
