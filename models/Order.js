@@ -18,6 +18,11 @@ const orderSchema = new mongoose.Schema({
     address: { type: String, required: true },
     phone: { type: String },
   },
+  installationAddress: {
+    name: { type: String },
+    address: { type: String },
+    phone: { type: String },
+  },
   paymentMethod: { type: String, required: true },
   status: {
     type: String,
