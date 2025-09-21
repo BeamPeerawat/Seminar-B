@@ -40,7 +40,7 @@ const orderSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   slipUploadDeadline: { type: Date }, // เพิ่ม deadline สำหรับแนบสลิป
-  deliveryImageUrl: { type: String }, // รูปภาพหลัง
+  deliveryImageUrl: { type: String }, // รูปภาพหลังจัดส่ง
 });
 
 export default mongoose.model("Order", orderSchema);
