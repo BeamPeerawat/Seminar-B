@@ -3,8 +3,11 @@ import fetch from "node-fetch";
 
 async function sendEmail({ to, subject, text }) {
   try {
+    if (!to) {
+      throw new Error("Recipient email is missing");
+    }
+
     if (process.env.EMAIL_PROVIDER === "gmail") {
-      // --- Gmail SMTP (ใช้ได้ถ้าไม่ host บน Render) ---
       const transporter = nodemailer.createTransport({
         host: process.env.GMAIL_HOST,
         port: process.env.GMAIL_PORT,
@@ -23,7 +26,6 @@ async function sendEmail({ to, subject, text }) {
       });
       console.log(`✅ Email sent via Gmail SMTP to ${to}`);
     } else if (process.env.EMAIL_PROVIDER === "brevo") {
-      // --- Brevo API ---
       const res = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
@@ -48,7 +50,8 @@ async function sendEmail({ to, subject, text }) {
       throw new Error("No valid EMAIL_PROVIDER configured.");
     }
   } catch (error) {
-    console.error(`❌ Failed to send email to ${to}:`, error);
+    console.error(`❌ Failed to send email to ${to || 'unknown'}:`, error.message);
+    throw error; // หรือบันทึกข้อผิดพลาดลงในฐานข้อมูล
   }
 }
 
