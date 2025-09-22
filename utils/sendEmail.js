@@ -1,38 +1,33 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+   import dotenv from "dotenv";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+   dotenv.config();
 
-const sendEmail = ({ to, subject, text }) => {
-  const msg = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    text,
-  };
+   const transporter = nodemailer.createTransport({
+     host: process.env.GMAIL_HOST,
+     port: process.env.GMAIL_PORT,
+     secure: false, // ใช้ STARTTLS
+     auth: {
+       user: process.env.GMAIL_USERNAME,
+       pass: process.env.GMAIL_PASSWORD,
+     },
+   });
 
-  // ส่งอีเมลแบบ non-blocking พร้อม retry
-  let retries = 3;
-  const send = () => {
-    resend.emails.send(msg).then(
-      (response) => {
-        console.log(`Email sent to ${to}:`, response);
-        if (response.id) {
-          console.log(`Email ID: ${response.id}`);
-        } else {
-          console.error(`Email to ${to} may not have been sent properly`);
-        }
-      },
-      (error) => {
-        console.error(`Failed to send email to ${to}:`, error);
-        if (retries > 0 && error.statusCode === 429) {
-          console.log(`Retrying email to ${to} (${retries} attempts left)`);
-          retries--;
-          setTimeout(send, 1000);
-        }
-      }
-    );
-  };
-  send();
-};
+   const sendEmail = ({ to, subject, text }) => {
+     const mailOptions = {
+       from: `"Auto Solar" <${process.env.EMAIL_USER}>`,
+       to,
+       subject,
+       text,
+     };
 
-export default sendEmail;
+     transporter.sendMail(mailOptions, (error, info) => {
+       if (error) {
+         console.error(`Failed to send email to ${to}:`, error);
+       } else {
+         console.log(`Email sent to ${to}:`, info.messageId);
+       }
+     });
+   };
+
+   export default sendEmail;
