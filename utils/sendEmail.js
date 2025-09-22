@@ -6,17 +6,20 @@ dotenv.config();
 const transporter = nodemailer.createTransport({
   host: process.env.GMAIL_HOST,
   port: process.env.GMAIL_PORT || 587,
-  secure: process.env.GMAIL_PORT === "465", // true สำหรับพอร์ต 465, false สำหรับ 587
+  secure: false, // ใช้ STARTTLS สำหรับพอร์ต 587
   auth: {
     user: process.env.GMAIL_USERNAME,
     pass: process.env.GMAIL_PASSWORD,
   },
-  connectionTimeout: 10000, // 10 วินาที
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  connectionTimeout: 15000, // 15 วินาที
+  greetingTimeout: 15000,
+  socketTimeout: 15000,
+  tls: {
+    rejectUnauthorized: false, // เพื่อหลีกเลี่ยงปัญหา certificate บน Render
+  },
 });
 
-const sendEmail = ({ to, subject, text }) => {
+const sendEmail = async ({ to, subject, text }) => {
   const mailOptions = {
     from: `"Auto Solar" <${process.env.EMAIL_USER}>`,
     to,
@@ -24,13 +27,14 @@ const sendEmail = ({ to, subject, text }) => {
     text,
   };
 
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error(`Failed to send email to ${to}:`, error);
-    } else {
-      console.log(`Email sent to ${to}:`, info.messageId);
-    }
-  });
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${to}:`, info.messageId);
+    return info;
+  } catch (error) {
+    console.error(`Failed to send email to ${to}:`, error);
+    throw error;
+  }
 };
 
 export default sendEmail;
