@@ -35,7 +35,7 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     const orderNumber = await getNextOrderNumber();
-    const slipUploadDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 ชม.
+    const slipUploadDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const newOrder = new Order({
       orderNumber,
@@ -51,11 +51,9 @@ router.post("/", async (req, res) => {
     await newOrder.save();
     console.log(`Order created successfully: #${orderNumber}`);
 
-    // ดึงอีเมลผู้ใช้จาก Profile
     const profile = await Profile.findOne({ userId });
-    const userEmail = profile?.email || process.env.ADMIN_EMAIL; // fallback ไปที่ ADMIN_EMAIL
+    const userEmail = profile?.email || process.env.ADMIN_EMAIL;
 
-    // สร้างข้อความอีเมล
     const orderDetails = `
 เลขที่คำสั่งซื้อ: #${orderNumber}
 วันที่: ${new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
@@ -69,14 +67,12 @@ ${items.map((item) => `- ${item.name} (จำนวน: ${item.quantity}, รา
 สถานะ: รอดำเนินการ
     `;
 
-    // ส่งอีเมลถึงผู้ใช้
     sendEmail({
       to: userEmail,
       subject: "ยืนยันคำสั่งซื้อ",
       text: `เรียน ${customer.name},\n\nคำสั่งซื้อของคุณได้รับการบันทึก:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
     });
 
-    // ส่งอีเมลถึงแอดมิน
     sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: "ได้รับคำสั่งซื้อใหม่",
@@ -438,6 +434,13 @@ router.post("/cancel-expired", async (req, res) => {
 router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
   try {
     const { imageUrl } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findOne({ userId });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ success: false, error: "Access denied: Admin only" });
+    }
+
     const order = await Order.findOneAndUpdate(
       { orderNumber: Number(req.params.orderNumber) },
       { deliveryImageUrl: imageUrl, updatedAt: Date.now() },

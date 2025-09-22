@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = ({ to, subject, text }) => {
   const msg = {
-    from: process.env.EMAIL_USER, // เช่น onboarding@resend.dev
+    from: process.env.EMAIL_USER,
     to,
     subject,
     text,
@@ -14,12 +14,17 @@ const sendEmail = ({ to, subject, text }) => {
   let retries = 3;
   const send = () => {
     resend.emails.send(msg).then(
-      () => {
-        console.log(`Email sent to ${to}`);
+      (response) => {
+        console.log(`Email sent to ${to}:`, response);
+        if (response.id) {
+          console.log(`Email ID: ${response.id}`);
+        } else {
+          console.error(`Email to ${to} may not have been sent properly`);
+        }
       },
       (error) => {
         console.error(`Failed to send email to ${to}:`, error);
-        if (retries > 0 && error.statusCode === 429) { // Retry เฉพาะ rate limit
+        if (retries > 0 && error.statusCode === 429) {
           console.log(`Retrying email to ${to} (${retries} attempts left)`);
           retries--;
           setTimeout(send, 1000);
