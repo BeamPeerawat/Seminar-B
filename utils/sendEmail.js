@@ -27,6 +27,7 @@ const sendEmail = async ({ to, subject, order, statusMessage, isCancellation = f
       ลูกค้า: ${order.customer.name}
       ที่อยู่: ${order.customer.address}
       เบอร์โทร: ${order.customer.phone}
+      ที่อยู่ติดตั้ง: ${order.installationAddress || "ไม่ระบุ"}
       รายการสินค้า:
       ${order.items
         .map(

@@ -6,6 +6,7 @@ import Product from "../models/Product.js";
 import OrderCounter from "../models/OrderCounter.js";
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const router = express.Router();
 
@@ -30,14 +31,16 @@ router.post("/", async (req, res) => {
       customer,
       paymentMethod,
       userId,
-      installationAddress, // ต้องมีตรงนี้
-      // ...อื่นๆ
+      installationAddress,
     } = req.body;
 
-    const orderNumber = await getNextOrderNumber();
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (!items || !total || !customer || !paymentMethod || !userId) {
+      return res.status(400).json({ success: false, error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    }
 
-    const now = Date.now();
-    const slipUploadDeadline = new Date(now + 24 * 60 * 60 * 1000); // 24 ชั่วโมง
+    const orderNumber = await getNextOrderNumber();
+    const slipUploadDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 ชม.
 
     const newOrder = new Order({
       orderNumber,
@@ -46,14 +49,38 @@ router.post("/", async (req, res) => {
       total,
       customer,
       paymentMethod,
-      installationAddress, // ต้องมีตรงนี้
+      installationAddress,
       slipUploadDeadline,
-      // ...อื่นๆ
+      status: "pending",
     });
 
     await newOrder.save();
+
+    // ดึงอีเมลผู้ใช้จาก Profile
+    const profile = await Profile.findOne({ userId });
+    const userEmail = profile?.email;
+
+    // ส่งอีเมลถึงผู้ใช้ (ถ้ามีอีเมล)
+    if (userEmail) {
+      await sendEmail({
+        to: userEmail,
+        subject: "ยืนยันคำสั่งซื้อ",
+        order: newOrder,
+        statusMessage: "รอดำเนินการ",
+      });
+    }
+
+    // ส่งอีเมลถึงแอดมิน
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: "ได้รับคำสั่งซื้อใหม่",
+      order: newOrder,
+      statusMessage: "รอดำเนินการ",
+    });
+
     res.status(201).json({ success: true, order: newOrder, orderNumber: newOrder.orderNumber });
   } catch (error) {
+    console.error("เกิดข้อผิดพลาดในการสร้างคำสั่งซื้อ:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -65,20 +92,16 @@ router.post("/upload-slip", async (req, res) => {
     const userId = req.user.userId;
 
     if (!orderNumber || !slipUrl) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Missing orderNumber or slipUrl" });
+      return res.status(400).json({ success: false, error: "กรุณาระบุ orderNumber และ slipUrl" });
     }
 
     // ตรวจสอบว่า slipUrl เป็น URL ที่ถูกต้องและมาจาก Cloudinary
     const cloudinaryUrlPattern = /^https:\/\/res\.cloudinary\.com\/debhfdjki\//;
     if (!cloudinaryUrlPattern.test(slipUrl)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Invalid slipUrl: Must be a valid Cloudinary URL",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "slipUrl ไม่ถูกต้อง: ต้องเป็น URL จาก Cloudinary",
+      });
     }
 
     const order = await Order.findOne({
@@ -86,14 +109,12 @@ router.post("/upload-slip", async (req, res) => {
       userId,
     });
     if (!order) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      return res.status(404).json({ success: false, error: "ไม่พบคำสั่งซื้อ" });
     }
 
     // ตรวจสอบสถานะ
     if (order.status === "confirmed") {
-      return res
-        .status(403)
-        .json({ success: false, error: "Cannot upload slip: Order already confirmed" });
+      return res.status(403).json({ success: false, error: "ไม่สามารถอัปโหลดสลิป: คำสั่งซื้อได้รับการยืนยันแล้ว" });
     }
 
     // ตรวจสอบ deadline
@@ -102,9 +123,28 @@ router.post("/upload-slip", async (req, res) => {
       order.status = "cancelled";
       order.updatedAt = Date.now();
       await order.save();
-      return res
-        .status(403)
-        .json({ success: false, error: "Slip upload deadline has passed" });
+
+      // ส่งอีเมลแจ้งการยกเลิก
+      const profile = await Profile.findOne({ userId });
+      const userEmail = profile?.email;
+      if (userEmail) {
+        await sendEmail({
+          to: userEmail,
+          subject: "ยกเลิกคำสั่งซื้อ",
+          order,
+          statusMessage: "ยกเลิก",
+          isCancellation: true,
+        });
+      }
+      await sendEmail({
+        to: process.env.ADMIN_EMAIL,
+        subject: "ยกเลิกคำสั่งซื้อ",
+        order,
+        statusMessage: "ยกเลิก",
+        isCancellation: true,
+      });
+
+      return res.status(403).json({ success: false, error: "เกินกำหนดเวลาอัปโหลดสลิป" });
     }
 
     order.slipUrl = slipUrl;
@@ -112,11 +152,29 @@ router.post("/upload-slip", async (req, res) => {
     order.updatedAt = Date.now();
     await order.save();
 
-    res
-      .status(200)
-      .json({ success: true, message: "Slip uploaded successfully", slipUrl });
+    // ส่งอีเมลถึงผู้ใช้
+    const profile = await Profile.findOne({ userId });
+    const userEmail = profile?.email;
+    if (userEmail) {
+      await sendEmail({
+        to: userEmail,
+        subject: "อัปโหลดสลิปเรียบร้อย",
+        order,
+        statusMessage: "รอยืนยัน",
+      });
+    }
+
+    // ส่งอีเมลถึงแอดมิน
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: "อัปโหลดสลิปสำหรับคำสั่งซื้อ",
+      order,
+      statusMessage: "รอยืนยัน",
+    });
+
+    res.status(200).json({ success: true, message: "อัปโหลดสลิปสำเร็จ", slipUrl });
   } catch (error) {
-    console.error("Error uploading slip:", error);
+    console.error("เกิดข้อผิดพลาดในการอัปโหลดสลิป:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -129,7 +187,7 @@ router.get("/:orderNumber", async (req, res) => {
 
     const user = await User.findOne({ userId });
     if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      return res.status(404).json({ success: false, error: "ไม่พบผู้ใช้" });
     }
 
     const query =
@@ -139,7 +197,7 @@ router.get("/:orderNumber", async (req, res) => {
 
     const order = await Order.findOne(query);
     if (!order) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      return res.status(404).json({ success: false, error: "ไม่พบคำสั่งซื้อ" });
     }
 
     const orderData = order.toObject();
@@ -151,7 +209,7 @@ router.get("/:orderNumber", async (req, res) => {
       order: orderData,
     });
   } catch (error) {
-    console.error("Error fetching order:", error);
+    console.error("เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ:", error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -166,7 +224,7 @@ router.get("/", async (req, res) => {
 
     const user = await User.findOne({ userId });
     if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      return res.status(404).json({ success: false, error: "ไม่พบผู้ใช้" });
     }
 
     const query = user.role === "admin" ? {} : { userId };
@@ -176,7 +234,7 @@ router.get("/", async (req, res) => {
       return res.status(200).json({
         success: true,
         orders: [],
-        message: "No orders found",
+        message: "ไม่พบคำสั่งซื้อ",
       });
     }
 
@@ -192,10 +250,10 @@ router.get("/", async (req, res) => {
       orders: ordersData,
     });
   } catch (error) {
-    console.error("Error fetching orders:", error);
+    console.error("เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch orders",
+      error: "ไม่สามารถดึงข้อมูลคำสั่งซื้อได้",
       details: error.message,
     });
   }
@@ -205,25 +263,23 @@ router.get("/", async (req, res) => {
 router.get("/pending", async (req, res) => {
   try {
     const userId = req.user.userId;
-    console.log(`Fetching pending orders for userId: ${userId}`);
+    console.log(`กำลังดึงคำสั่งซื้อที่รอดำเนินการสำหรับ userId: ${userId}`);
 
     const user = await User.findOne({ userId });
     if (!user) {
-      console.log(`User not found: ${userId}`);
-      return res.status(404).json({ success: false, error: "User not found" });
+      console.log(`ไม่พบผู้ใช้: ${userId}`);
+      return res.status(404).json({ success: false, error: "ไม่พบผู้ใช้" });
     }
 
     if (user.role !== "admin") {
-      console.log(`Access denied: User ${userId} is not admin`);
-      return res
-        .status(403)
-        .json({ success: false, error: "Access denied: Admin only" });
+      console.log(`การเข้าถึงถูกปฏิเสธ: ผู้ใช้ ${userId} ไม่ใช่แอดมิน`);
+      return res.status(403).json({ success: false, error: "การเข้าถึงถูกปฏิเสธ: เฉพาะแอดมินเท่านั้น" });
     }
 
     const orders = await Order.find({ status: "pending" }).sort({
       createdAt: -1,
     });
-    console.log(`Found ${orders.length} pending orders`);
+    console.log(`พบ ${orders.length} คำสั่งซื้อที่รอดำเนินการ`);
 
     const ordersData = orders.map((order) => ({
       _id: order._id,
@@ -235,13 +291,13 @@ router.get("/pending", async (req, res) => {
     res.status(200).json({
       success: true,
       orders: ordersData,
-      message: orders.length === 0 ? "No pending orders found" : undefined,
+      message: orders.length === 0 ? "ไม่พบคำสั่งซื้อที่รอดำเนินการ" : undefined,
     });
   } catch (error) {
-    console.error("Error fetching pending orders:", error);
+    console.error("เกิดข้อผิดพลาดในการดึงคำสั่งซื้อที่รอดำเนินการ:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch pending orders",
+      error: "ไม่สามารถดึงคำสั่งซื้อที่รอดำเนินการได้",
       details: error.message,
     });
   }
@@ -256,9 +312,7 @@ router.put("/:orderNumber/status", async (req, res) => {
 
     const user = await User.findOne({ userId });
     if (!user || user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ success: false, error: "Access denied: Admin only" });
+      return res.status(403).json({ success: false, error: "การเข้าถึงถูกปฏิเสธ: เฉพาะแอดมินเท่านั้น" });
     }
 
     const validStatuses = [
@@ -270,7 +324,7 @@ router.put("/:orderNumber/status", async (req, res) => {
       "cancelled",
     ];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ success: false, error: "Invalid status" });
+      return res.status(400).json({ success: false, error: "สถานะไม่ถูกต้อง" });
     }
 
     const order = await Order.findOneAndUpdate(
@@ -280,8 +334,42 @@ router.put("/:orderNumber/status", async (req, res) => {
     );
 
     if (!order) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      return res.status(404).json({ success: false, error: "ไม่พบคำสั่งซื้อ" });
     }
+
+    // แมปสถานะเป็นข้อความภาษาไทย
+    const statusMessages = {
+      pending: "รอดำเนินการ",
+      awaiting_verification: "รอยืนยัน",
+      confirmed: "ยืนยันแล้ว",
+      ready_to_ship: "พร้อมจัดส่ง",
+      delivered: "จัดส่งสำเร็จ",
+      cancelled: "ยกเลิก",
+    };
+
+    // ดึงอีเมลผู้ใช้
+    const profile = await Profile.findOne({ userId: order.userId });
+    const userEmail = profile?.email;
+
+    // ส่งอีเมลถึงผู้ใช้
+    if (userEmail) {
+      await sendEmail({
+        to: userEmail,
+        subject: `อัปเดตสถานะคำสั่งซื้อ: ${statusMessages[status]}`,
+        order,
+        statusMessage: statusMessages[status],
+        isThankYou: status === "delivered",
+      });
+    }
+
+    // ส่งอีเมลถึงแอดมิน
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: `อัปเดตสถานะคำสั่งซื้อ: ${statusMessages[status]}`,
+      order,
+      statusMessage: statusMessages[status],
+      isThankYou: status === "delivered",
+    });
 
     const orderData = order.toObject();
     orderData.createdAt = orderData.createdAt.toISOString();
@@ -289,7 +377,7 @@ router.put("/:orderNumber/status", async (req, res) => {
 
     res.status(200).json({ success: true, order: orderData });
   } catch (error) {
-    console.error("Error updating order status:", error);
+    console.error("เกิดข้อผิดพลาดในการอัปเดตสถานะ:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -305,24 +393,44 @@ router.post("/cancel-expired", async (req, res) => {
     });
 
     if (expiredOrders.length > 0) {
-      await Order.updateMany(
-        {
-          _id: { $in: expiredOrders.map((order) => order._id) },
-        },
-        {
-          status: "cancelled",
-          updatedAt: now,
+      for (const order of expiredOrders) {
+        order.status = "cancelled";
+        order.updatedAt = now;
+        await order.save();
+
+        // ดึงอีเมลผู้ใช้
+        const profile = await Profile.findOne({ userId: order.userId });
+        const userEmail = profile?.email;
+
+        // ส่งอีเมลถึงผู้ใช้
+        if (userEmail) {
+          await sendEmail({
+            to: userEmail,
+            subject: "ยกเลิกคำสั่งซื้อ",
+            order,
+            statusMessage: "ยกเลิก",
+            isCancellation: true,
+          });
         }
-      );
-      console.log(`Cancelled ${expiredOrders.length} expired orders`);
+
+        // ส่งอีเมลถึงแอดมิน
+        await sendEmail({
+          to: process.env.ADMIN_EMAIL,
+          subject: "ยกเลิกคำสั่งซื้อ",
+          order,
+          statusMessage: "ยกเลิก",
+          isCancellation: true,
+        });
+      }
+      console.log(`ยกเลิก ${expiredOrders.length} คำสั่งซื้อที่หมดอายุ`);
     }
 
     res.status(200).json({
       success: true,
-      message: `Cancelled ${expiredOrders.length} expired orders`,
+      message: `ยกเลิก ${expiredOrders.length} คำสั่งซื้อที่หมดอายุ`,
     });
   } catch (error) {
-    console.error("Error cancelling expired orders:", error);
+    console.error("เกิดข้อผิดพลาดในการยกเลิกคำสั่งซื้อที่หมดอายุ:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -331,14 +439,56 @@ router.post("/cancel-expired", async (req, res) => {
 router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
   try {
     const { imageUrl } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findOne({ userId });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ success: false, error: "การเข้าถึงถูกปฏิเสธ: เฉพาะแอดมินเท่านั้น" });
+    }
+
+    // ตรวจสอบว่า imageUrl เป็น URL ที่ถูกต้องและมาจาก Cloudinary
+    const cloudinaryUrlPattern = /^https:\/\/res\.cloudinary\.com\/debhfdjki\//;
+    if (!imageUrl || !cloudinaryUrlPattern.test(imageUrl)) {
+      return res.status(400).json({
+        success: false,
+        error: "imageUrl ไม่ถูกต้อง: ต้องเป็น URL จาก Cloudinary",
+      });
+    }
+
     const order = await Order.findOneAndUpdate(
       { orderNumber: Number(req.params.orderNumber) },
       { deliveryImageUrl: imageUrl, updatedAt: Date.now() },
       { new: true }
     );
-    if (!order) return res.status(404).json({ success: false, error: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ success: false, error: "ไม่พบคำสั่งซื้อ" });
+    }
+
+    // ส่งอีเมลถึงผู้ใช้
+    const profile = await Profile.findOne({ userId: order.userId });
+    const userEmail = profile?.email;
+    if (userEmail) {
+      await sendEmail({
+        to: userEmail,
+        subject: "อัปโหลดรูปภาพการจัดส่ง",
+        order,
+        statusMessage: order.status === "delivered" ? "จัดส่งสำเร็จ" : order.status,
+        isThankYou: order.status === "delivered",
+      });
+    }
+
+    // ส่งอีเมลถึงแอดมิน
+    await sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: "อัปโหลดรูปภาพการจัดส่ง",
+      order,
+      statusMessage: order.status === "delivered" ? "จัดส่งสำเร็จ" : order.status,
+      isThankYou: order.status === "delivered",
+    });
+
     res.status(200).json({ success: true, deliveryImageUrl: order.deliveryImageUrl });
   } catch (error) {
+    console.error("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพการจัดส่ง:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
