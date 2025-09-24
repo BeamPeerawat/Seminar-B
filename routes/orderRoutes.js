@@ -49,6 +49,15 @@ router.post("/", async (req, res) => {
     });
 
     await newOrder.save();
+
+    // ลดสต็อกสินค้า
+    for (const item of items) {
+      await Product.findOneAndUpdate(
+        { productId: item.productId },
+        { $inc: { stock: -item.quantity } }
+      );
+    }
+
     console.log(`Order created successfully: #${orderNumber}`);
 
     const profile = await Profile.findOne({ userId });
