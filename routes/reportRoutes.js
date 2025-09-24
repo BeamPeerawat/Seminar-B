@@ -269,9 +269,10 @@ router.get("/export", async (req, res) => {
 
     const parser = new Parser({ fields });
     const csv = parser.parse(data);
-    res.header("Content-Type", "text/csv");
+    // เพิ่ม BOM นำหน้า csv
+    res.header("Content-Type", "text/csv; charset=utf-8");
     res.attachment(`${filename}-${from}-to-${to}.csv`);
-    res.send(csv);
+    res.send('\uFEFF' + csv); // <-- เพิ่ม BOM ตรงนี้
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
