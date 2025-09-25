@@ -629,7 +629,7 @@ router.post("/verify-slip", async (req, res) => {
 
     const slipOkRes = await axios.post(
       "https://api.slipok.com/api/line/apikey/53422",
-      { image: slipUrl },
+      { url: slipUrl }, // ✅ ต้องเป็น url
       {
         headers: {
           Authorization: `Bearer ${process.env.SLIPOK_API_KEY}`,
@@ -638,7 +638,7 @@ router.post("/verify-slip", async (req, res) => {
       }
     );
 
-    console.log("SlipOK response:", slipOkRes.data); // 👈 log เพื่อตรวจสอบจริงๆ
+    console.log("SlipOK response:", slipOkRes.data);
 
     const result = slipOkRes.data;
 
@@ -651,14 +651,15 @@ router.post("/verify-slip", async (req, res) => {
 
     return res.json({ success: true, slipData: result.data });
   } catch (error) {
-    console.error("Error calling SlipOK:", error.response?.data || error.message); // 👈 log error จริง
+    console.error("Error calling SlipOK:", error.response?.data || error.message);
     return res.status(500).json({
       success: false,
       error: error.message,
-      details: error.response?.data || null, // ส่งรายละเอียดมาด้วย
+      details: error.response?.data || null,
     });
   }
 });
+
 
 
 
