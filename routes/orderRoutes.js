@@ -149,23 +149,27 @@ router.post("/", async (req, res) => {
 
     const now = new Date();
     const dateStr = now.toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
-    await sendEmail({
-      to: customer.email,
-      subject: "ยืนยันคำสั่งซื้อ",
-      text: `เรียน ${customer.name},\n\nคำสั่งซื้อของคุณได้รับการบันทึก:\n\nเลขที่คำสั่งซื้อ: #${orderNumber}\nวันที่: ${dateStr}\nลูกค้า: ${customer.name}\nที่อยู่: ${customer.address}\nที่อยู่ติดตั้ง: ${installationAddress}\nเบอร์โทร: ${customer.phone}\n\nรายการสินค้า:\n${items.map(item => `- ${item.name} (จำนวน: ${item.quantity}, ราคา: ฿${item.price.toLocaleString()})`).join("\n")}\n\nยอดรวม: ฿${total.toLocaleString()}\nสถานะ: รอดำเนินการ\n\nด้วยความเคารพ,\nAuto Solar`,
-      html: buildOrderEmail({
+    if (customer.email) {
+      await sendEmail({
+        to: customer.email,
         subject: "ยืนยันคำสั่งซื้อ",
-        customer,
-        orderNumber,
-        date: dateStr,
-        address: customer.address,
-        installationAddress,
-        phone: customer.phone,
-        items,
-        total,
-        status: "รอดำเนินการ"
-      })
-    });
+        text: `เรียน ${customer.name},\n\nคำสั่งซื้อของคุณได้รับการบันทึก:\n\nเลขที่คำสั่งซื้อ: #${orderNumber}\nวันที่: ${dateStr}\nลูกค้า: ${customer.name}\nที่อยู่: ${customer.address}\nที่อยู่ติดตั้ง: ${installationAddress}\nเบอร์โทร: ${customer.phone}\n\nรายการสินค้า:\n${items.map(item => `- ${item.name} (จำนวน: ${item.quantity}, ราคา: ฿${item.price.toLocaleString()})`).join("\n")}\n\nยอดรวม: ฿${total.toLocaleString()}\nสถานะ: รอดำเนินการ\n\nด้วยความเคารพ,\nAuto Solar`,
+        html: buildOrderEmail({
+          subject: "ยืนยันคำสั่งซื้อ",
+          customer,
+          orderNumber,
+          date: dateStr,
+          address: customer.address,
+          installationAddress,
+          phone: customer.phone,
+          items,
+          total,
+          status: "รอดำเนินการ"
+        })
+      });
+    } else {
+      console.warn(`Order #${orderNumber} ไม่มีอีเมลลูกค้า ไม่ส่งอีเมล`);
+    }
 
     sendEmail({
       to: process.env.ADMIN_EMAIL,
