@@ -22,90 +22,6 @@ const getNextOrderNumber = async () => {
   return counter.sequence_value;
 };
 
-// ฟังก์ชันสร้าง HTML อีเมลแบบมืออาชีพ ครอบคลุมทุกสถานะ
-function buildOrderEmail({ 
-  subject, 
-  customer, 
-  orderNumber, 
-  date, 
-  address, 
-  installationAddress, 
-  phone, 
-  items, 
-  total, 
-  status, 
-  note 
-}) {
-  // แก้ไขที่อยู่ติดตั้งให้เป็น string
-  const installationAddressStr = installationAddress
-    ? (typeof installationAddress === "object"
-        ? Object.values(installationAddress).join(" ")
-        : installationAddress)
-    : "ไม่ระบุ";
-
-  // สีสถานะ
-  const statusColor = {
-    "รอดำเนินการ": "#007bff",
-    "รอชำระเงิน": "#ffc107",
-    "รอตรวจสอบ": "#17a2b8",
-    "ยืนยันแล้ว": "#28a745",
-    "จัดส่งแล้ว": "#6610f2",
-    "สำเร็จ": "#28a745",
-    "ยกเลิก": "#dc3545",
-    "หมดอายุ": "#6c757d"
-  }[status] || "#333";
-
-  return `
-    <div style="font-family:'Kanit',Arial,sans-serif;max-width:600px;margin:auto;background:#f9f9f9;padding:32px 24px;border-radius:12px;border:1px solid #e5e5e5;">
-      <div style="text-align:center;margin-bottom:24px;">
-        <img src="https://scontent.fkkc4-1.fna.fbcdn.net/v/t39.30808-6/434667371_927682582479935_518338705919595560_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=fZ6Zv6cL4-4Q7kNvwHTemus&_nc_oc=AdlFllqQR2NGV38XpXTelZoBVyXJirPVWPuBBUEi_AZTtB0SrXx4mFtbx9sjBB17OjsdYvB_ZzZGvagiXAPUNroP&_nc_zt=23&_nc_ht=scontent.fkkc4-1.fna&_nc_gid=qLrv7Tglrh-VjdwU6rmwhQ&oh=00_AfYkZDbj7dWScOQSqNh9UxsqIJR8hCCPaxTDYtONVNrJlA&oe=68DB75D2" alt="Logo" width="64" style="margin-bottom:8px;" />
-        <h2 style="color:#007bff;margin:0;">Auto Solar</h2>
-      </div>
-      <div style="background:#fff;padding:24px 20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-        <h3 style="color:#333;margin-top:0;">${subject}</h3>
-        <p style="font-size:1.1em;"><b>เรียน ${customer.name},</b></p>
-        <table style="width:100%;border-collapse:collapse;font-size:1em;margin-bottom:16px;">
-          <tr><td style="font-weight:bold;padding:4px 0;">เลขที่คำสั่งซื้อ:</td><td style="padding:4px 0;">#${orderNumber}</td></tr>
-          <tr><td style="font-weight:bold;padding:4px 0;">วันที่:</td><td style="padding:4px 0;">${date}</td></tr>
-          <tr><td style="font-weight:bold;padding:4px 0;">ลูกค้า:</td><td style="padding:4px 0;">${customer.name}</td></tr>
-          <tr><td style="font-weight:bold;padding:4px 0;">ที่อยู่:</td><td style="padding:4px 0;">${address}</td></tr>
-          <tr><td style="font-weight:bold;padding:4px 0;">ที่อยู่ติดตั้ง:</td><td style="padding:4px 0;">${installationAddressStr}</td></tr>
-          <tr><td style="font-weight:bold;padding:4px 0;">เบอร์โทร:</td><td style="padding:4px 0;">${phone}</td></tr>
-        </table>
-        <h4 style="margin-bottom:8px;">รายการสินค้า</h4>
-        <table style="width:100%;border-collapse:collapse;font-size:1em;">
-          <thead>
-            <tr style="background:#f0f4f8;">
-              <th align="left" style="padding:6px 4px;">สินค้า</th>
-              <th align="center" style="padding:6px 4px;">จำนวน</th>
-              <th align="right" style="padding:6px 4px;">ราคา (฿)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => `
-              <tr>
-                <td style="padding:4px 0;">${item.name}</td>
-                <td align="center" style="padding:4px 0;">${item.quantity}</td>
-                <td align="right" style="padding:4px 0;">${item.price.toLocaleString()}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-        <p style="font-size:1.1em;margin-top:16px;"><b>ยอดรวม:</b> <span style="color:#28a745;">฿${total.toLocaleString()}</span></p>
-        <p style="font-size:1.05em;"><b>สถานะ:</b> <span style="color:${statusColor};">${status}</span></p>
-        ${note ? `<div style="margin-top:16px;padding:12px 16px;background:#fff3cd;border-radius:6px;color:#856404;border:1px solid #ffeeba;">${note}</div>` : ""}
-      </div>
-      <div style="margin-top:32px;text-align:center;color:#888;font-size:0.95em;">
-        <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #eee;">
-        <div>Auto Solar<br/>โทร. 080-0495522</div>
-        <div style="margin-top:8px;">
-          <a href="https://yourcompany.com" style="color:#007bff;text-decoration:none;">เยี่ยมชมเว็บไซต์</a>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
 // สร้างคำสั่งซื้อ
 router.post("/", async (req, res) => {
   try {
@@ -147,34 +63,55 @@ router.post("/", async (req, res) => {
     const profile = await Profile.findOne({ userId });
     const userEmail = profile?.email || process.env.ADMIN_EMAIL;
 
+    const orderDetails = `
+เลขที่คำสั่งซื้อ: #${orderNumber}
+วันที่: ${new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
+ลูกค้า: ${customer.name}
+ที่อยู่: ${customer.address}
+ที่อยู่ติดตั้ง: ${installationAddress || "ไม่ระบุ"}
+เบอร์โทร: ${customer.phone}
+รายการสินค้า:
+${items.map((item) => `- ${item.name} (จำนวน: ${item.quantity}, ราคา: ฿${item.price.toLocaleString()})`).join("\n")}
+ยอดรวม: ฿${total.toLocaleString()}
+สถานะ: รอดำเนินการ
+    `;
+
     const now = new Date();
     const dateStr = now.toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
-    if (customer.email) {
-      await sendEmail({
-        to: customer.email,
-        subject: "ยืนยันคำสั่งซื้อ",
-        text: `เรียน ${customer.name},\n\nคำสั่งซื้อของคุณได้รับการบันทึก:\n\nเลขที่คำสั่งซื้อ: #${orderNumber}\nวันที่: ${dateStr}\nลูกค้า: ${customer.name}\nที่อยู่: ${customer.address}\nที่อยู่ติดตั้ง: ${installationAddress}\nเบอร์โทร: ${customer.phone}\n\nรายการสินค้า:\n${items.map(item => `- ${item.name} (จำนวน: ${item.quantity}, ราคา: ฿${item.price.toLocaleString()})`).join("\n")}\n\nยอดรวม: ฿${total.toLocaleString()}\nสถานะ: รอดำเนินการ\n\nด้วยความเคารพ,\nAuto Solar`,
-        html: buildOrderEmail({
-          subject: "ยืนยันคำสั่งซื้อ",
-          customer,
-          orderNumber,
-          date: dateStr,
-          address: customer.address,
-          installationAddress,
-          phone: customer.phone,
-          items,
-          total,
-          status: "รอดำเนินการ"
-        })
-      });
-    } else {
-      console.warn(`Order #${orderNumber} ไม่มีอีเมลลูกค้า ไม่ส่งอีเมล`);
-    }
 
+    sendEmail({
+      to: userEmail,
+      subject: "ยืนยันคำสั่งซื้อ",
+      text: `เรียน ${customer.name},\n\nคำสั่งซื้อของคุณได้รับการบันทึก:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "ยืนยันคำสั่งซื้อ",
+        customer,
+        orderNumber,
+        date: dateStr,
+        address: customer.address,
+        installationAddress,
+        phone: customer.phone,
+        items,
+        total,
+        status: "รอดำเนินการ"
+      })
+    });
     sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: "ได้รับคำสั่งซื้อใหม่",
       text: `เรียน แอดมิน,\n\nมีคำสั่งซื้อใหม่:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "ได้รับคำสั่งซื้อใหม่",
+        customer,
+        orderNumber,
+        date: dateStr,
+        address: customer.address,
+        installationAddress,
+        phone: customer.phone,
+        items,
+        total,
+        status: "รอดำเนินการ"
+      })
     });
 
     res.status(201).json({ success: true, order: newOrder, orderNumber: newOrder.orderNumber });
@@ -231,15 +168,42 @@ router.post("/upload-slip", async (req, res) => {
 เบอร์โทร: ${order.customer.phone}
 สถานะ: ยกเลิก
       `;
+      const dateStr = new Date(order.createdAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
       sendEmail({
         to: userEmail,
         subject: "ยกเลิกคำสั่งซื้อ",
         text: `เรียน ${order.customer.name},\n\nคำสั่งซื้อถูกยกเลิกเนื่องจากเกินกำหนดอัปโหลดสลิป:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+        html: buildOrderEmailHTML({
+          subject: "ยกเลิกคำสั่งซื้อ",
+          customer: order.customer,
+          orderNumber: order.orderNumber,
+          date: dateStr,
+          address: order.customer.address,
+          installationAddress: order.installationAddress,
+          phone: order.customer.phone,
+          items: order.items,
+          total: order.total,
+          status: "ยกเลิก",
+          note: "คำสั่งซื้อของคุณถูกยกเลิกโดยอัตโนมัติเนื่องจากไม่ได้ชำระเงินภายในเวลาที่กำหนด"
+        })
       });
       sendEmail({
         to: process.env.ADMIN_EMAIL,
         subject: "ยกเลิกคำสั่งซื้อ",
         text: `เรียน แอดมิน,\n\nคำสั่งซื้อถูกยกเลิก:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+        html: buildOrderEmailHTML({
+          subject: "ยกเลิกคำสั่งซื้อ",
+          customer: order.customer,
+          orderNumber: order.orderNumber,
+          date: dateStr,
+          address: order.customer.address,
+          installationAddress: order.installationAddress,
+          phone: order.customer.phone,
+          items: order.items,
+          total: order.total,
+          status: "ยกเลิก",
+          note: "คำสั่งซื้อของลูกค้าถูกยกเลิกโดยอัตโนมัติเนื่องจากไม่ได้ชำระเงินภายในเวลาที่กำหนด"
+        })
       });
 
       return res.status(403).json({ success: false, error: "Slip upload deadline has passed" });
@@ -261,15 +225,40 @@ router.post("/upload-slip", async (req, res) => {
 เบอร์โทร: ${order.customer.phone}
 สถานะ: รอยืนยัน
     `;
+    const dateStr = new Date(order.createdAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
     sendEmail({
       to: userEmail,
       subject: "อัปโหลดสลิปเรียบร้อย",
       text: `เรียน ${order.customer.name},\n\nสลิปของคุณได้รับการอัปโหลด:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "อัปโหลดสลิปเรียบร้อย",
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: "รอยืนยัน"
+      })
     });
     sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: "อัปโหลดสลิปสำหรับคำสั่งซื้อ",
       text: `เรียน แอดมิน,\n\nมีสลิปอัปโหลดใหม่:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "อัปโหลดสลิปสำหรับคำสั่งซื้อ",
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: "รอยืนยัน"
+      })
     });
 
     res.status(200).json({ success: true, message: "Slip uploaded successfully", slipUrl });
@@ -456,15 +445,42 @@ router.put("/:orderNumber/status", async (req, res) => {
 เบอร์โทร: ${order.customer.phone}
 สถานะ: ${statusMessages[status] || status}${status === "delivered" ? "\nขอบคุณที่ใช้บริการของเรา!" : ""}
     `;
+    const dateStr = new Date(order.createdAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
     sendEmail({
       to: userEmail,
       subject: `อัปเดตสถานะคำสั่งซื้อ: ${statusMessages[status] || status}`,
       text: `เรียน ${order.customer.name},\n\nคำสั่งซื้อของคุณได้รับการอัปเดต:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: `อัปเดตสถานะคำสั่งซื้อ: ${statusMessages[status] || status}`,
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: statusMessages[status] || status,
+        note: status === "delivered" ? "ขอบคุณที่ใช้บริการของเรา!" : ""
+      })
     });
     sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: `อัปเดตสถานะคำสั่งซื้อ: ${statusMessages[status] || status}`,
       text: `เรียน แอดมิน,\n\nคำสั่งซื้อได้รับการอัปเดต:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: `อัปเดตสถานะคำสั่งซื้อ: ${statusMessages[status] || status}`,
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: statusMessages[status] || status,
+        note: status === "delivered" ? "ขอบคุณที่ใช้บริการของเรา!" : ""
+      })
     });
 
     const orderData = order.toObject();
@@ -557,15 +573,42 @@ router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
 เบอร์โทร: ${order.customer.phone}
 สถานะ: ${order.status === "delivered" ? "จัดส่งสำเร็จ\nขอบคุณที่ใช้บริการของเรา!" : order.status}
     `;
+    const dateStr = new Date(order.createdAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
     sendEmail({
       to: userEmail,
       subject: "อัปโหลดรูปภาพการจัดส่ง",
       text: `เรียน ${order.customer.name},\n\nรูปภาพการจัดส่งได้รับการอัปโหลด:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "อัปโหลดรูปภาพการจัดส่ง",
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: order.status === "delivered" ? "จัดส่งสำเร็จ" : order.status,
+        note: order.status === "delivered" ? "ขอบคุณที่ใช้บริการของเรา!" : ""
+      })
     });
     sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: "อัปโหลดรูปภาพการจัดส่ง",
       text: `เรียน แอดมิน,\n\nรูปภาพการจัดส่งได้รับการอัปโหลด:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "อัปโหลดรูปภาพการจัดส่ง",
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: order.status === "delivered" ? "จัดส่งสำเร็จ" : order.status,
+        note: order.status === "delivered" ? "ขอบคุณที่ใช้บริการของเรา!" : ""
+      })
     });
 
     res.status(200).json({ success: true, deliveryImageUrl: order.deliveryImageUrl });
@@ -574,5 +617,60 @@ router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, installationAddress, phone, items, total, status, note }) {
+  // ป้องกัน [object Object]
+  const installAddr = typeof installationAddress === "object"
+    ? Object.values(installationAddress).join(" ")
+    : installationAddress || "ไม่ระบุ";
+
+  // สีสถานะ
+  const statusColor = {
+    "รอดำเนินการ": "#007bff",
+    "รอยืนยัน": "#17a2b8",
+    "ยืนยันแล้ว": "#28a745",
+    "พร้อมจัดส่ง": "#ffc107",
+    "จัดส่งสำเร็จ": "#6610f2",
+    "ยกเลิก": "#dc3545",
+    "รอตรวจสอบ": "#fd7e14"
+  }[status] || "#333";
+
+  return `
+    <div style="font-family:'Kanit',Arial,sans-serif;max-width:600px;margin:auto;background:#f9f9f9;padding:32px 24px;border-radius:12px;border:1px solid #e5e5e5;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <img src="https://res.cloudinary.com/dw6jih4yt/image/upload/v1716718932/434667371_927682582479935_518338705919595560_n.jpg" alt="Logo" width="64" style="margin-bottom:8px;" />
+        <h2 style="color:#007bff;margin:0;">Auto Solar</h2>
+      </div>
+      <div style="background:#fff;padding:24px 20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <h3 style="color:#333;margin-top:0;">${subject}</h3>
+        <p style="font-size:1.1em;"><b>เรียน ${customer.name},</b></p>
+        <table style="width:100%;border-collapse:collapse;font-size:1em;margin-bottom:16px;">
+          <tr><td style="font-weight:bold;padding:4px 0;">เลขที่คำสั่งซื้อ:</td><td style="padding:4px 0;">#${orderNumber}</td></tr>
+          <tr><td style="font-weight:bold;padding:4px 0;">วันที่:</td><td style="padding:4px 0;">${date}</td></tr>
+          <tr><td style="font-weight:bold;padding:4px 0;">ลูกค้า:</td><td style="padding:4px 0;">${customer.name}</td></tr>
+          <tr><td style="font-weight:bold;padding:4px 0;">ที่อยู่:</td><td style="padding:4px 0;">${address}</td></tr>
+          <tr><td style="font-weight:bold;padding:4px 0;">ที่อยู่ติดตั้ง:</td><td style="padding:4px 0;">${installAddr}</td></tr>
+          <tr><td style="font-weight:bold;padding:4px 0;">เบอร์โทร:</td><td style="padding:4px 0;">${phone}</td></tr>
+        </table>
+        ${items && items.length > 0 ? `
+        <h4 style="margin-bottom:8px;">รายการสินค้า</h4>
+        <ul style="padding-left:20px;">
+          ${items.map(item => `<li>${item.name} (จำนวน: ${item.quantity}, ราคา: ฿${item.price.toLocaleString()})</li>`).join("")}
+        </ul>
+        <p style="font-size:1.1em;margin-top:16px;"><b>ยอดรวม:</b> <span style="color:#28a745;">฿${total?.toLocaleString()}</span></p>
+        ` : ""}
+        <p style="font-size:1.05em;"><b>สถานะ:</b> <span style="color:${statusColor};">${status}</span></p>
+        ${note ? `<div style="margin-top:16px;padding:12px 16px;background:#fff3cd;border-radius:6px;color:#856404;border:1px solid #ffeeba;">${note}</div>` : ""}
+      </div>
+      <div style="margin-top:32px;text-align:center;color:#888;font-size:0.95em;">
+        <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #eee;">
+        <div>Auto Solar<br/>โทร. 080-0495522</div>
+        <div style="margin-top:8px;">
+          <a href="https://yourcompany.com" style="color:#007bff;text-decoration:none;">เยี่ยมชมเว็บไซต์</a>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 export default router;
