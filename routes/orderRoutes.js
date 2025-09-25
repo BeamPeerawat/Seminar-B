@@ -623,35 +623,38 @@ router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
 router.post("/verify-slip", async (req, res) => {
   try {
     const { slipUrl } = req.body;
-    if (!slipUrl) return res.status(400).json({ success: false, error: "No slipUrl" });
-
-    // เรียก SlipOk API
-const slipOkRes = await axios.post(
-  "https://api.slipok.com/api/line/apikey/53422",
-  { image: slipUrl },
-  {
-    headers: {
-      Authorization: `Bearer ${process.env.SLIPOK_API_KEY}`, 
-      "Content-Type": "application/json",
-    },
-  }
-);
-
-    if (!slipOkRes.data.status) {
-      return res.status(200).json({ success: false, message: slipOkRes.data.message || "ตรวจสอบสลิปไม่ผ่าน" });
+    if (!slipUrl) {
+      return res.status(400).json({ success: false, error: "No slipUrl" });
     }
 
-    // ตัวอย่าง: ตรวจสอบชื่อบัญชี/เลขบัญชี/ยอดเงิน (ถ้าต้องการ)
-    // const isAccountCorrect = slipOkRes.data.data.account_number === "1234567890";
-    // const isNameCorrect = slipOkRes.data.data.account_name === "บริษัท ตัวอย่าง จำกัด";
-    // const isAmountCorrect = slipOkRes.data.data.amount == order.total;
+    const slipOkRes = await axios.post(
+      "https://api.slipok.com/api/line/apikey/53422",
+      { image: slipUrl },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.SLIPOK_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const result = slipOkRes.data;
+
+    // เช็ค success จาก response
+    if (!result.success || !result.data?.success) {
+      return res.status(200).json({
+        success: false,
+        message: result.data?.message || result.message || "ตรวจสอบสลิปไม่ผ่าน",
+      });
+    }
 
     // ส่งข้อมูลที่ได้กลับไป frontend
-    return res.json({ success: true, slipData: slipOkRes.data.data });
+    return res.json({ success: true, slipData: result.data });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, installationAddress, phone, items, total, status, note }) {
   // ป้องกัน [object Object]
