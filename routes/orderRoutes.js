@@ -627,16 +627,17 @@ router.post("/verify-slip", async (req, res) => {
       return res.status(400).json({ success: false, error: "No slipUrl" });
     }
 
-    const slipOkRes = await axios.post(
-      "https://api.slipok.com/api/line/apikey/53422",
-      { url: slipUrl }, // ✅ ต้องเป็น url
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.SLIPOK_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+const slipOkRes = await axios.post(
+  "https://api.slipok.com/api/line/apikey/53422",
+  { url: slipUrl },
+  {
+    headers: {
+      "x-authorization": process.env.SLIPOK_API_KEY,  // ✅ ใช้ x-authorization
+      "Content-Type": "application/json",
+    },
+  }
+);
+
 
     console.log("SlipOK response:", slipOkRes.data);
 
