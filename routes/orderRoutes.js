@@ -638,9 +638,10 @@ router.post("/verify-slip", async (req, res) => {
       }
     );
 
+    console.log("SlipOK response:", slipOkRes.data); // 👈 log เพื่อตรวจสอบจริงๆ
+
     const result = slipOkRes.data;
 
-    // เช็ค success จาก response
     if (!result.success || !result.data?.success) {
       return res.status(200).json({
         success: false,
@@ -648,12 +649,17 @@ router.post("/verify-slip", async (req, res) => {
       });
     }
 
-    // ส่งข้อมูลที่ได้กลับไป frontend
     return res.json({ success: true, slipData: result.data });
   } catch (error) {
-    return res.status(500).json({ success: false, error: error.message });
+    console.error("Error calling SlipOK:", error.response?.data || error.message); // 👈 log error จริง
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data || null, // ส่งรายละเอียดมาด้วย
+    });
   }
 });
+
 
 
 function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, installationAddress, phone, items, total, status, note }) {
