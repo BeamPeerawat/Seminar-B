@@ -51,7 +51,7 @@ async function sendEmail({ to, subject, text, html }) {
       });
 
       await transporter.sendMail({
-        from: `"My Shop" <${process.env.GMAIL_USERNAME}>`,
+        from: `"Auto Solar" <${process.env.GMAIL_USERNAME}>`,
         to,
         subject,
         text,
