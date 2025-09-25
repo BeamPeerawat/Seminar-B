@@ -21,8 +21,7 @@ async function sendEmail({ to, subject, text, html }) {
       `
       <div style="font-family:'Kanit',Arial,sans-serif;max-width:600px;margin:auto;background:#f9f9f9;padding:32px 24px;border-radius:12px;border:1px solid #e5e5e5;">
         <div style="text-align:center;margin-bottom:24px;">
-          <img src="https://cdn-icons-png.flaticon.com/512/1041/1041916.png" alt="Logo" width="64" style="margin-bottom:8px;" />
-          <h2 style="color:#007bff;margin:0;">My Shop</h2>
+<img src="https://scontent.fkkc4-1.fna.fbcdn.net/v/t39.30808-6/434667371_927682582479935_518338705919595560_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=fZ6Zv6cL4-4Q7kNvwHTemus&_nc_oc=AdlFllqQR2NGV38XpXTelZoBVyXJirPVWPuBBUEi_AZTtB0SrXx4mFtbx9sjBB17OjsdYvB_ZzZGvagiXAPUNroP&_nc_zt=23&_nc_ht=scontent.fkkc4-1.fna&_nc_gid=qLrv7Tglrh-VjdwU6rmwhQ&oh=00_AfYkZDbj7dWScOQSqNh9UxsqIJR8hCCPaxTDYtONVNrJlA&oe=68DB75D2" alt="Logo" width="64" style="margin-bottom:8px;" />          <h2 style="color:#007bff;margin:0;">Auto Solar</h2>
         </div>
         <div style="background:#fff;padding:24px 20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
           <h3 style="color:#333;margin-top:0;">${subject}</h3>
@@ -32,7 +31,7 @@ async function sendEmail({ to, subject, text, html }) {
         </div>
         <div style="margin-top:32px;text-align:center;color:#888;font-size:0.95em;">
           <hr style="margin:24px 0 16px 0;border:none;border-top:1px solid #eee;">
-          <div>บริษัทของคุณ<br/>โทร. 02-xxx-xxxx</div>
+          <div>Auto Solar<br/>โทร. 080-0495522</div>
           <div style="margin-top:8px;">
             <a href="https://yourcompany.com" style="color:#007bff;text-decoration:none;">เยี่ยมชมเว็บไซต์</a>
           </div>
