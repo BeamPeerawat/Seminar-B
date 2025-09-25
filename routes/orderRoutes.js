@@ -7,6 +7,7 @@ import OrderCounter from "../models/OrderCounter.js";
 import authenticate from "../middleware/authenticate.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import sendEmail from "../utils/sendEmail.js";
+import axios from "axios";
 
 const router = express.Router();
 
@@ -615,6 +616,35 @@ router.post("/:orderNumber/upload-delivery-image", async (req, res) => {
   } catch (error) {
     console.error("Error uploading delivery image:", error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ตรวจสอบสลิป (SlipOk API)
+router.post("/verify-slip", async (req, res) => {
+  try {
+    const { slipUrl } = req.body;
+    if (!slipUrl) return res.status(400).json({ success: false, error: "No slipUrl" });
+
+    // เรียก SlipOk API
+    const slipOkRes = await axios.post(
+      "https://api.slipok.com/api/line/apikey/53422",
+      { image: slipUrl },
+      { headers: { apikey: "SLIPOKQYBPPW1" } }
+    );
+
+    if (!slipOkRes.data.status) {
+      return res.status(200).json({ success: false, message: slipOkRes.data.message || "ตรวจสอบสลิปไม่ผ่าน" });
+    }
+
+    // ตัวอย่าง: ตรวจสอบชื่อบัญชี/เลขบัญชี/ยอดเงิน (ถ้าต้องการ)
+    // const isAccountCorrect = slipOkRes.data.data.account_number === "1234567890";
+    // const isNameCorrect = slipOkRes.data.data.account_name === "บริษัท ตัวอย่าง จำกัด";
+    // const isAmountCorrect = slipOkRes.data.data.amount == order.total;
+
+    // ส่งข้อมูลที่ได้กลับไป frontend
+    return res.json({ success: true, slipData: slipOkRes.data.data });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
