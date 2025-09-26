@@ -719,4 +719,40 @@ function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, in
   `;
 }
 
+// เพิ่ม route สำหรับยกเลิกออเดอร์
+router.post("/:orderNumber/cancel", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const userId = req.user.userId;
+
+    const order = await Order.findOne({ 
+      orderNumber: Number(orderNumber),
+      userId,
+      status: "pending"
+    });
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "ไม่พบออเดอร์ หรือไม่สามารถยกเลิกได้" 
+      });
+    }
+
+    order.status = "cancelled";
+    order.updatedAt = Date.now();
+    await order.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: "ยกเลิกออเดอร์สำเร็จ" 
+    });
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
 export default router;
