@@ -738,13 +738,80 @@ router.post("/:orderNumber/cancel", async (req, res) => {
       });
     }
 
+    // Update order status
     order.status = "cancelled";
     order.updatedAt = Date.now();
     await order.save();
 
+    // Get user's email
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "ไม่พบข้อมูลผู้ใช้" 
+      });
+    }
+
+    // Send email to user
+    const userEmailContent = `
+      เรียนคุณ ${order.customer.name},
+
+      คำสั่งซื้อหมายเลข #${order.orderNumber} ของคุณถูกยกเลิกเรียบร้อยแล้ว
+
+      รายละเอียดคำสั่งซื้อ:
+      - หมายเลขคำสั่งซื้อ: #${order.orderNumber}
+      - วันที่: ${new Date().toLocaleString('th-TH')}
+      - สถานะ: ยกเลิก
+
+      หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่
+
+      ขอแสดงความนับถือ
+      Auto Solar
+    `;
+
+    // Send email to admin
+    const adminEmailContent = `
+      แจ้งเตือน: มีการยกเลิกคำสั่งซื้อ
+
+      รายละเอียดคำสั่งซื้อที่ถูกยกเลิก:
+      - หมายเลขคำสั่งซื้อ: #${order.orderNumber}
+      - ชื่อลูกค้า: ${order.customer.name}
+      - อีเมล: ${user.email}
+      - เบอร์โทร: ${order.customer.phone}
+      - วันที่ยกเลิก: ${new Date().toLocaleString('th-TH')}
+      - สถานะ: ยกเลิก
+
+      ข้อมูลการติดต่อ:
+      - อีเมล: ${process.env.ADMIN_EMAIL}
+      - เบอร์โทร: 080-0495522
+    `;
+
+    try {
+      // Send email to user
+      await sendEmail({
+        to: user.email,
+        subject: `คำสั่งซื้อ #${order.orderNumber} ถูกยกเลิกเรียบร้อย`,
+        text: userEmailContent
+      });
+
+      // Send email to admin
+      if (process.env.ADMIN_EMAIL) {
+        await sendEmail({
+          to: process.env.ADMIN_EMAIL,
+          subject: `[ยกเลิกคำสั่งซื้อ] #${order.orderNumber} - ${order.customer.name}`,
+          text: adminEmailContent
+        });
+      }
+
+      console.log(`Sent cancellation emails for order #${order.orderNumber}`);
+    } catch (emailError) {
+      console.error("Failed to send cancellation emails:", emailError);
+      // Continue even if email fails
+    }
+
     res.status(200).json({ 
       success: true, 
-      message: "ยกเลิกออเดอร์สำเร็จ" 
+      message: "ยกเลิกออเดอร์สำเร็จและส่งการแจ้งเตือนเรียบร้อยแล้ว" 
     });
   } catch (error) {
     console.error("Error cancelling order:", error);
