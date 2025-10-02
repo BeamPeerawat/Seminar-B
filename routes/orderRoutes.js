@@ -684,7 +684,7 @@ function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, in
   return `
     <div style="font-family:'Kanit',Arial,sans-serif;max-width:600px;margin:auto;background:#f9f9f9;padding:32px 24px;border-radius:12px;border:1px solid #e5e5e5;">
       <div style="text-align:center;margin-bottom:24px;">
-        <img src="https://scontent.fkkc4-1.fna.fbcdn.net/v/t39.30808-6/434667371_927682582479935_518338705919595560_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=fZ6Zv6cL4-4Q7kNvwHTemus&_nc_oc=AdlFllqQR2NGV38XpXTelZoBVyXJirPVWPuBBUEi_AZTtB0SrXx4mFtbx9sjBB17OjsdYvB_ZzZGvagiXAPUNroP&_nc_zt=23&_nc_ht=scontent.fkkc4-1.fna&_nc_gid=qLrv7Tglrh-VjdwU6rmwhQ&oh=00_AfYkZDbj7dWScOQSqNh9UxsqIJR8hCCPaxTDYtONVNrJlA&oe=68DB75D2" alt="Logo" width="64" style="margin-bottom:8px;" />
+        <img src="https://scontent.fbkk12-2.fna.fbcdn.net/v/t39.30808-6/434667371_927682582479935_518338705919595560_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=tGHWdRO9o8gQ7kNvwEsue6q&_nc_oc=Adkws5fUJWbrwfirrqc-iC77APwJ_S3A_hY7m7FQ86xrAhc9TCxY0OxkM4wAa_SvakrH5utM2Zt2Gj8wA26XsnNa&_nc_zt=23&_nc_ht=scontent.fbkk12-2.fna&_nc_gid=fhOK3kiR6VMbya5yCqXcUQ&oh=00_AfYIA-4R6uKwvMS1nmUwBvP-0Z83RGAghYJFmi99wZqwaw&oe=68E47812" alt="Logo" width="64" style="margin-bottom:8px;" />
         <h2 style="color:#007bff;margin:0;">Auto Solar</h2>
       </div>
       <div style="background:#fff;padding:24px 20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
