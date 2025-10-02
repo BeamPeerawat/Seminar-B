@@ -720,6 +720,7 @@ function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, in
 }
 
 // เพิ่ม route สำหรับยกเลิกออเดอร์
+// เพิ่ม route สำหรับยกเลิกออเดอร์
 router.post("/:orderNumber/cancel", async (req, res) => {
   try {
     const { orderNumber } = req.params;
@@ -742,6 +743,60 @@ router.post("/:orderNumber/cancel", async (req, res) => {
     order.updatedAt = Date.now();
     await order.save();
 
+    // 🔹 เพิ่มส่วนส่งอีเมล
+    const profile = await Profile.findOne({ userId: order.userId });
+    const userEmail = profile?.email || process.env.ADMIN_EMAIL;
+    const dateStr = new Date(order.createdAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
+    const orderDetails = `
+เลขที่คำสั่งซื้อ: #${order.orderNumber}
+วันที่: ${dateStr}
+ลูกค้า: ${order.customer.name}
+ที่อยู่: ${order.customer.address}
+ที่อยู่ติดตั้ง: ${order.installationAddress || "ไม่ระบุ"}
+เบอร์โทร: ${order.customer.phone}
+สถานะ: ยกเลิก
+    `;
+
+    // ส่งอีเมลถึงลูกค้า
+    sendEmail({
+      to: userEmail,
+      subject: "ยกเลิกคำสั่งซื้อ",
+      text: `เรียน ${order.customer.name},\n\nคำสั่งซื้อของคุณถูกยกเลิก:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "ยกเลิกคำสั่งซื้อ",
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: "ยกเลิก",
+        note: "คุณได้ยกเลิกออเดอร์นี้ด้วยตนเอง"
+      })
+    });
+
+    // ส่งอีเมลถึงแอดมิน
+    sendEmail({
+      to: process.env.ADMIN_EMAIL,
+      subject: "ลูกค้ายกเลิกคำสั่งซื้อ",
+      text: `เรียน แอดมิน,\n\nลูกค้าได้ยกเลิกคำสั่งซื้อ:\n\n${orderDetails}\n\nด้วยความเคารพ,\nบริษัทของคุณ`,
+      html: buildOrderEmailHTML({
+        subject: "ลูกค้ายกเลิกคำสั่งซื้อ",
+        customer: order.customer,
+        orderNumber: order.orderNumber,
+        date: dateStr,
+        address: order.customer.address,
+        installationAddress: order.installationAddress,
+        phone: order.customer.phone,
+        items: order.items,
+        total: order.total,
+        status: "ยกเลิก",
+        note: "ลูกค้าได้ยกเลิกออเดอร์นี้ด้วยตนเอง"
+      })
+    });
+
     res.status(200).json({ 
       success: true, 
       message: "ยกเลิกออเดอร์สำเร็จ" 
@@ -754,5 +809,6 @@ router.post("/:orderNumber/cancel", async (req, res) => {
     });
   }
 });
+
 
 export default router;
