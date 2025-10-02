@@ -684,7 +684,7 @@ function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, in
   return `
     <div style="font-family:'Kanit',Arial,sans-serif;max-width:600px;margin:auto;background:#f9f9f9;padding:32px 24px;border-radius:12px;border:1px solid #e5e5e5;">
       <div style="text-align:center;margin-bottom:24px;">
-        <img src="https://www.facebook.com/photo/?fbid=927682589146601&set=a.568816241699906" alt="Logo" width="64" style="margin-bottom:8px;" />
+        <img src="https://scontent.fkkc4-1.fna.fbcdn.net/v/t39.30808-6/434667371_927682582479935_518338705919595560_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=tGHWdRO9o8gQ7kNvwEMumKN&_nc_oc=Adl-2w0S5Vl-_4mvFJlpcjx81hqdaOQe9D_5N2MNg8lT65VObBbJdK5a1yJ_iLTJDVDZrTVFFocaDr-LrNzPEFVe&_nc_zt=23&_nc_ht=scontent.fkkc4-1.fna&_nc_gid=Ik8Y_bX0nIvzFt7JiEsibw&oh=00_AfbrAktjAhJ_UZ_QoTHb8Lb59K60G2G_-OKsoj4Ab_hiaA&oe=68E47812" alt="Logo" width="64" style="margin-bottom:8px;" />
         <h2 style="color:#007bff;margin:0;">Auto Solar</h2>
       </div>
       <div style="background:#fff;padding:24px 20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
