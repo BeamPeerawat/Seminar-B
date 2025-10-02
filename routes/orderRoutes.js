@@ -738,80 +738,84 @@ router.post("/:orderNumber/cancel", async (req, res) => {
       });
     }
 
-    // Update order status
     order.status = "cancelled";
     order.updatedAt = Date.now();
     await order.save();
 
-    // Get user's email
+    // ส่งอีเมลไปยังผู้ใช้
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "ไม่พบข้อมูลผู้ใช้" 
-      });
-    }
+    if (user && user.email) {
+      const orderDetails = `
+        เรียนคุณ ${order.customer.name},
 
-    // Send email to user
-    const userEmailContent = `
-      เรียนคุณ ${order.customer.name},
-
-      คำสั่งซื้อหมายเลข #${order.orderNumber} ของคุณถูกยกเลิกเรียบร้อยแล้ว
-
-      รายละเอียดคำสั่งซื้อ:
-      - หมายเลขคำสั่งซื้อ: #${order.orderNumber}
-      - วันที่: ${new Date().toLocaleString('th-TH')}
-      - สถานะ: ยกเลิก
-
-      หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่
-
-      ขอแสดงความนับถือ
-      Auto Solar
-    `;
-
-    // Send email to admin
-    const adminEmailContent = `
-      แจ้งเตือน: มีการยกเลิกคำสั่งซื้อ
-
-      รายละเอียดคำสั่งซื้อที่ถูกยกเลิก:
-      - หมายเลขคำสั่งซื้อ: #${order.orderNumber}
-      - ชื่อลูกค้า: ${order.customer.name}
-      - อีเมล: ${user.email}
-      - เบอร์โทร: ${order.customer.phone}
-      - วันที่ยกเลิก: ${new Date().toLocaleString('th-TH')}
-      - สถานะ: ยกเลิก
-
-      ข้อมูลการติดต่อ:
-      - อีเมล: ${process.env.ADMIN_EMAIL}
-      - เบอร์โทร: 080-0495522
-    `;
-
-    try {
-      // Send email to user
+        คำสั่งซื้อหมายเลข #${order.orderNumber} ของคุณถูกยกเลิกเรียบร้อยแล้ว
+        
+        รายละเอียดคำสั่งซื้อ:
+        วันที่: ${new Date(order.createdAt).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}
+        สินค้า: ${order.items.map(item => `${item.name} (${item.quantity} ชิ้น)`).join(', ')}
+        ยอดรวม: ฿${order.total.toLocaleString()}
+        
+        หากมีข้อสงสัยกรุณาติดต่อเจ้าหน้าที่
+        
+        ขอบคุณที่ใช้บริการ
+        Auto Solar
+      `;
+      
+      const dateStr = new Date(order.createdAt).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+      
+      // ส่งอีเมลไปยังผู้ใช้
       await sendEmail({
         to: user.email,
-        subject: `คำสั่งซื้อ #${order.orderNumber} ถูกยกเลิกเรียบร้อย`,
-        text: userEmailContent
+        subject: `ยกเลิกคำสั่งซื้อ #${order.orderNumber}`,
+        text: orderDetails,
+        html: buildOrderEmailHTML({
+          subject: `ยกเลิกคำสั่งซื้อ #${order.orderNumber}`,
+          customer: order.customer,
+          orderNumber: order.orderNumber,
+          date: dateStr,
+          address: order.customer.address,
+          installationAddress: order.installationAddress,
+          phone: order.customer.phone,
+          items: order.items,
+          total: order.total,
+          status: 'ยกเลิก',
+          note: 'คำสั่งซื้อถูกยกเลิกเรียบร้อยแล้ว'
+        })
       });
 
-      // Send email to admin
+      // ส่งอีเมลไปยังแอดมิน
       if (process.env.ADMIN_EMAIL) {
         await sendEmail({
           to: process.env.ADMIN_EMAIL,
-          subject: `[ยกเลิกคำสั่งซื้อ] #${order.orderNumber} - ${order.customer.name}`,
-          text: adminEmailContent
+          subject: `คำสั่งซื้อ #${order.orderNumber} ถูกยกเลิกโดยผู้ใช้`,
+          text: `คำสั่งซื้อ #${order.orderNumber} ถูกยกเลิกโดยผู้ใช้
+          
+          รายละเอียดคำสั่งซื้อ:
+          ลูกค้า: ${order.customer.name}
+          วันที่: ${dateStr}
+          สินค้า: ${order.items.map(item => `${item.name} (${item.quantity} ชิ้น)`).join(', ')}
+          ยอดรวม: ฿${order.total.toLocaleString()}
+          `,
+          html: buildOrderEmailHTML({
+            subject: `คำสั่งซื้อ #${order.orderNumber} ถูกยกเลิกโดยผู้ใช้`,
+            customer: order.customer,
+            orderNumber: order.orderNumber,
+            date: dateStr,
+            address: order.customer.address,
+            installationAddress: order.installationAddress,
+            phone: order.customer.phone,
+            items: order.items,
+            total: order.total,
+            status: 'ยกเลิก',
+            note: 'คำสั่งซื้อถูกยกเลิกโดยผู้ใช้'
+          })
         });
       }
-
-      console.log(`Sent cancellation emails for order #${order.orderNumber}`);
-    } catch (emailError) {
-      console.error("Failed to send cancellation emails:", emailError);
-      // Continue even if email fails
     }
 
     res.status(200).json({ 
       success: true, 
-      message: "ยกเลิกออเดอร์สำเร็จและส่งการแจ้งเตือนเรียบร้อยแล้ว" 
+      message: "ยกเลิกออเดอร์สำเร็จ" 
     });
   } catch (error) {
     console.error("Error cancelling order:", error);
