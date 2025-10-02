@@ -684,7 +684,7 @@ function buildOrderEmailHTML({ subject, customer, orderNumber, date, address, in
   return `
     <div style="font-family:'Kanit',Arial,sans-serif;max-width:600px;margin:auto;background:#f9f9f9;padding:32px 24px;border-radius:12px;border:1px solid #e5e5e5;">
       <div style="text-align:center;margin-bottom:24px;">
-        <img src="https://i.ibb.co/7bB8LqF/logo.png" alt="Auto Solar Logo" width="120" style="margin-bottom:12px; display:block; margin-left:auto; margin-right:auto;" />
+        <img src="https://res.cloudinary.com/debhfdjki/image/upload/yzrhcagdpfab1ndgquhz" alt="Logo" width="64" style="margin-bottom:8px;" />
         <h2 style="color:#007bff;margin:0;">Auto Solar</h2>
       </div>
       <div style="background:#fff;padding:24px 20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
